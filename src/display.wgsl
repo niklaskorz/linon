@@ -14,7 +14,7 @@ let positions: array<vec2<f32>, 4> = array<vec2<f32>, 4>(
 fn vs_main([[builtin(vertex_index)]] in_vertex_index: u32) -> VertexOutput {
     let position = positions[in_vertex_index];
     var out: VertexOutput;
-    //out.tex_coord = position;
+    out.tex_coord = position;
     out.position = vec4<f32>(position.x, position.y, 0.0, 1.0);
     return out;
 }
