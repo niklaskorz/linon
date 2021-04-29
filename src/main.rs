@@ -10,6 +10,9 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+const WIDTH: u32 = 1280;
+const HEIGHT: u32 = 720;
+
 async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
     let size = window.inner_size();
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
@@ -44,7 +47,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
         flags: wgpu::ShaderFlags::all(),
     });
 
-    let texture = texture::Texture::new(&device, (800, 600), Some("result"));
+    let texture = texture::Texture::new(&device, (WIDTH, HEIGHT), Some("result"));
 
     let compute_bind_group_layout =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -194,7 +197,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
                     });
                     cpass.set_pipeline(&compute_pipeline);
                     cpass.set_bind_group(0, &compute_bind_group, &[]);
-                    cpass.dispatch(800 / 8, 600 / 8, 1);
+                    cpass.dispatch(WIDTH / 8, HEIGHT / 8, 1);
                 }
                 encoder.pop_debug_group();
 
@@ -236,8 +239,8 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(PhysicalSize {
-            width: 800,
-            height: 600,
+            width: WIDTH,
+            height: HEIGHT,
         })
         .build(&event_loop)?;
     env_logger::init();
