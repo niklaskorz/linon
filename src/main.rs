@@ -97,15 +97,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler {
-                        filtering: true,
-                        comparison: false,
-                    },
-                    count: None,
-                },
             ],
         });
     let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -115,10 +106,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
             wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::TextureView(&texture.view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&texture.sampler),
             },
         ],
     });
@@ -238,6 +225,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
 fn main() -> Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
+        .with_title("linon")
         .with_inner_size(PhysicalSize {
             width: WIDTH,
             height: HEIGHT,
