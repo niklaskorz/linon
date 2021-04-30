@@ -9,8 +9,7 @@ let positions: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
 
 [[stage(vertex)]]
 fn vs_main([[builtin(vertex_index)]] in_vertex_index: u32) -> [[builtin(position)]] vec4<f32> {
-    let position = positions[in_vertex_index];
-    return vec4<f32>(position.xy, 0.0, 1.0);
+    return vec4<f32>(positions[in_vertex_index], 0.0, 1.0);
 }
 
 [[group(0), binding(0)]]
