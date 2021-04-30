@@ -10,9 +10,6 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-const WIDTH: u32 = 1280;
-const HEIGHT: u32 = 720;
-
 async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
     let size = window.inner_size();
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
@@ -47,7 +44,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
         flags: wgpu::ShaderFlags::all(),
     });
 
-    let texture = texture::Texture::new(&device, (WIDTH, HEIGHT), Some("result"));
+    let mut texture = texture::Texture::new(&device, (size.width, size.height), Some("result"));
 
     let compute_bind_group_layout =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -63,7 +60,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
             }],
             label: Some("compute_bind_group_layout"),
         });
-    let compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+    let mut compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: &compute_bind_group_layout,
         entries: &[wgpu::BindGroupEntry {
             binding: 0,
@@ -86,28 +83,24 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
     let texture_bind_group_layout =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("texture_bind_group_layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    },
-                    count: None,
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStage::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 },
-            ],
+                count: None,
+            }],
         });
-    let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+    let mut texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("texture_bind_group"),
         layout: &texture_bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture.view),
-            },
-        ],
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::TextureView(&texture.view),
+        }],
     });
 
     let swapchain_format = adapter
@@ -156,6 +149,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
             &adapter,
             &display_shader,
             &render_pipeline_layout,
+            &texture
         );
 
         *control_flow = ControlFlow::Wait;
@@ -164,6 +158,23 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
+                texture = texture::Texture::new(&device, (size.width, size.height), Some("result"));
+                compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &compute_bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture.view),
+                    }],
+                    label: Some("compute_bind_group"),
+                });
+                texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("texture_bind_group"),
+                    layout: &texture_bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture.view),
+                    }],
+                });
                 sc_desc.width = size.width;
                 sc_desc.height = size.height;
                 swap_chain = device.create_swap_chain(&surface, &sc_desc);
@@ -184,7 +195,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) -> Result<()> {
                     });
                     cpass.set_pipeline(&compute_pipeline);
                     cpass.set_bind_group(0, &compute_bind_group, &[]);
-                    cpass.dispatch(WIDTH / 8, HEIGHT / 8, 1);
+                    cpass.dispatch((sc_desc.width + 7) / 8, (sc_desc.height + 7) / 8, 1);
                 }
                 encoder.pop_debug_group();
 
@@ -227,8 +238,8 @@ fn main() -> Result<()> {
     let window = WindowBuilder::new()
         .with_title("linon")
         .with_inner_size(PhysicalSize {
-            width: WIDTH,
-            height: HEIGHT,
+            width: 1280,
+            height: 720,
         })
         .build(&event_loop)?;
     env_logger::init();
