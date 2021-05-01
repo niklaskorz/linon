@@ -2,9 +2,12 @@
 var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
 
 let white: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+let grey: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 let green: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
 let red: vec3<f32> = vec3<f32>(1.0, 0.0, 0.0);
 let blue: vec3<f32> = vec3<f32>(0.0, 0.0, 1.0);
+let yellow: vec3<f32> = vec3<f32>(1.0, 1.0, 0.0);
+let brown: vec3<f32> = vec3<f32>(0.59, 0.29, 0.0);
 
 let num_quads: i32 = 18;
 let num_vertices: i32 = 72; // num_quads * 4
@@ -108,9 +111,9 @@ let vertices: array<vec3<f32>, num_vertices> = array<vec3<f32>, num_vertices>(
 );
 let colors: array<vec3<f32>, num_quads> = array<vec3<f32>, num_quads>(
     // Floor
-    white,
-    white,
-    white,
+    grey,
+    grey,
+    grey,
     // Ceiling
     white,
     white,
@@ -121,17 +124,17 @@ let colors: array<vec3<f32>, num_quads> = array<vec3<f32>, num_quads>(
     // Left wall
     red,
     // Short block
-    red,
-    red,
-    red,
-    red,
-    red,
+    yellow,
+    yellow,
+    yellow,
+    yellow,
+    yellow,
     // Tall block
-    green,
-    green,
-    green,
-    green,
-    green,
+    brown,
+    brown,
+    brown,
+    brown,
+    brown,
 );
 
 fn hit_sphere(center: vec3<f32>, radius: f32, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
