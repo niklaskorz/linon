@@ -11,6 +11,7 @@ use winit::{
 };
 
 fn main() -> Result<()> {
+    env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("linon")
@@ -19,7 +20,6 @@ fn main() -> Result<()> {
             height: 720,
         })
         .build(&event_loop)?;
-    env_logger::init();
     let mut app = block_on(application::Application::new(&window))?;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
