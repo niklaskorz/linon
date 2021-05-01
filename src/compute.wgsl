@@ -192,8 +192,6 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     }
     if (t > 0.0) {
         return vec4<f32>(colors[ic], 1.0);
-        // let N = normalize(origin + t * direction - vec3<f32>(0.0, 0.0, -1.0));
-        // return 0.5 * vec4<f32>(N.x + 1.0, N.y + 1.0, N.z + 1.0, 1.0);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
@@ -220,9 +218,10 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let horizontal = vec3<f32>(-1.0, 0.0, 0.0);
     let vertical = vec3<f32>(0.0, 1.0, 0.0);
 
-    let u = f32(gid.x) / (width - 1.0) * 2.0 * viewport_width - viewport_width;
-    let v = f32(gid.y) / (height - 1.0) * 2.0 * viewport_height - viewport_height;
-    let dir = normalize(u * horizontal + v * vertical + focal_length * view_direction);
+    let u = f32(gid.x) / (width - 1.0) * viewport_width - 0.5 * viewport_width;
+    let v = f32(gid.y) / (height - 1.0) *  viewport_height - 0.5 * viewport_height;
+    let s = origin + u * horizontal + v * vertical + focal_length * view_direction;
+    let dir = normalize(s - origin);
     let color = ray_color(origin, dir);
 
     textureStore(target, coords, color);
