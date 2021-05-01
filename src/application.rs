@@ -57,16 +57,21 @@ impl Application {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let flags = wgpu::ShaderFlags::all();
+        #[cfg(target_arch = "wasm32")]
+        let flags = wgpu::ShaderFlags::VALIDATION;
+
         let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("compute.wgsl"))),
-            flags: wgpu::ShaderFlags::all(),
+            flags,
         });
 
         let display_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("display_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("display.wgsl"))),
-            flags: wgpu::ShaderFlags::all(),
+            flags,
         });
 
         let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
