@@ -180,6 +180,7 @@ fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>)
 fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     var t: f32 = -1.0;
     var t_new: f32;
+    var normal: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
     var ic: i32;
     for (var i: i32 = 0; i < num_quads; i = i + 1) {
         let t0 = array<vec3<f32>, 3>(vertices[(i*4)], vertices[(i*4)+1], vertices[(i*4)+2]);
@@ -191,10 +192,13 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
         if (t_new > 0.0 && (t < 0.0 || t_new < t)) {
             t = t_new;
             ic = i; 
+            normal = normalize(cross(vertices[(i*4)+1] - vertices[(i*4)], vertices[(i*4)+2] - vertices[(i*4)]));
         }
     }
     if (t > 0.0) {
-        return vec4<f32>(colors[ic], 1.0);
+        normal = 0.5 * (normal + vec3<f32>(1.0));
+        return vec4<f32>(normal, 1.0);
+        // return vec4<f32>(colors[ic], 1.0);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
