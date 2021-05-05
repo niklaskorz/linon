@@ -2,16 +2,31 @@ mod application;
 mod texture;
 
 use anyhow::Result;
+use application::Application;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::fs;
+use std::sync::mpsc::channel;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
-use application::Application;
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
-    let mut app = Application::new(&window).await.expect("creation of application failed");
+    let mut app = Application::new(&window)
+        .await
+        .expect("creation of application failed");
+
+    let (tx, rx) = channel::<notify::Result<notify::Event>>();
+    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| {
+        tx.send(res).expect("sending watch event failed");
+    })
+    .expect("creation of watcher failed");
+    // let path = fs::canonicalize("src/compute.wgsl").expect("canonicalization of path failed");
+    watcher
+        .watch("src/compute.wgsl", RecursiveMode::NonRecursive)
+        .expect("watching failed");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -25,7 +40,22 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
-            Event::MainEventsCleared => window.request_redraw(),
+            Event::MainEventsCleared => {
+                let mut reload_compute_shader = false;
+                for result in rx.try_iter() {
+                    if let Ok(_event) = result {
+                        reload_compute_shader = true;
+                    }
+                }
+                if reload_compute_shader {
+                    println!("Compute shader has changed: {:?}", event);
+                    let source = fs::read_to_string("src/compute.wgsl")
+                        .expect("reading compute shader failed");
+                    app.reload_compute_shader(&source)
+                        .expect("shader reload failed");
+                }
+                window.request_redraw()
+            }
             _ => {}
         }
     });
@@ -60,7 +90,8 @@ fn main() -> Result<()> {
             .and_then(|body| {
                 body.append_child(&web_sys::Element::from(window.canvas()))
                     .ok()
-            }).context("could not append canvas to document")?;
+            })
+            .context("could not append canvas to document")?;
     }
 
     #[cfg(not(target_arch = "wasm32"))]

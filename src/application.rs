@@ -16,9 +16,11 @@ pub struct Application {
     texture: Texture,
     compute_bind_group_layout: wgpu::BindGroupLayout,
     compute_bind_group: wgpu::BindGroup,
+    compute_pipeline_layout: wgpu::PipelineLayout,
     compute_pipeline: wgpu::ComputePipeline,
     render_bind_group_layout: wgpu::BindGroupLayout,
     render_bind_group: wgpu::BindGroup,
+    _render_pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
 }
 
@@ -174,9 +176,11 @@ impl Application {
             texture,
             compute_bind_group_layout,
             compute_bind_group,
+            compute_pipeline_layout,
             compute_pipeline,
             render_bind_group_layout,
             render_bind_group,
+            _render_pipeline_layout: render_pipeline_layout,
             render_pipeline,
         })
     }
@@ -202,6 +206,34 @@ impl Application {
         self.sc_desc.width = width;
         self.sc_desc.height = height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+    }
+
+    pub fn reload_compute_shader(&mut self, source: &str) -> Result<()> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let flags = wgpu::ShaderFlags::all();
+        #[cfg(target_arch = "wasm32")]
+        let flags = wgpu::ShaderFlags::VALIDATION;
+
+        let compute_shader = self
+            .device
+            .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                label: Some("compute_shader"),
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
+                flags,
+            });
+        let compute_pipeline =
+            self.device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("compute_pipeline"),
+                    layout: Some(&self.compute_pipeline_layout),
+                    module: &compute_shader,
+                    entry_point: "main",
+                });
+
+        self._compute_shader = compute_shader;
+        self.compute_pipeline = compute_pipeline;
+
+        Ok(())
     }
 
     pub fn render(&mut self) {

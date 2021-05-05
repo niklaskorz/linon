@@ -194,10 +194,10 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
         }
     }
     if (t > 0.0) {
-        // let normal = normalize(cross(vertices[(ic*4)+1] - vertices[(ic*4)], vertices[(ic*4)+2] - vertices[(ic*4)]));
-        // let color = abs(normal);
-        // return vec4<f32>(color, 1.0);
-        return vec4<f32>(colors[ic], 1.0);
+        let normal = normalize(cross(vertices[(ic*4)+1] - vertices[(ic*4)], vertices[(ic*4)+2] - vertices[(ic*4)]));
+        let color = abs(normal);
+        return vec4<f32>(color, 1.0);
+        // return vec4<f32>(colors[ic], 1.0);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
