@@ -1,6 +1,6 @@
 use crate::texture::Texture;
 use anyhow::{Context, Result};
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::mpsc::channel};
 use winit::window::Window;
 
 pub struct Application {
@@ -208,11 +208,16 @@ impl Application {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn reload_compute_shader(&mut self, source: &str) -> Result<()> {
+    pub fn reload_compute_shader(&mut self, source: &str) -> Result<(), wgpu::Error> {
         #[cfg(not(target_arch = "wasm32"))]
         let flags = wgpu::ShaderFlags::all();
         #[cfg(target_arch = "wasm32")]
         let flags = wgpu::ShaderFlags::VALIDATION;
+
+        let (tx, rx) = channel::<wgpu::Error>();
+        self.device.on_uncaptured_error(move |e: wgpu::Error| {
+            tx.send(e).expect("sending error failed");
+        });
 
         let compute_shader = self
             .device
@@ -229,6 +234,12 @@ impl Application {
                     module: &compute_shader,
                     entry_point: "main",
                 });
+
+        self.device.on_uncaptured_error(|e| panic!(e));
+
+        if let Ok(err) = rx.try_recv() {
+            return Err(err);
+        }
 
         self._compute_shader = compute_shader;
         self.compute_pipeline = compute_pipeline;
