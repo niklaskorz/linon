@@ -2,6 +2,7 @@ use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::{Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
+use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, MouseButton, MouseScrollDelta},
@@ -15,6 +16,24 @@ enum CameraOperation {
     None,
     Rotate,
     Pan,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CameraUniform {
+    eye_pos: [f32; 3],
+    eye_dir: [f32; 3],
+    up_dir: [f32; 3],
+}
+
+impl CameraUniform {
+    fn from(camera: &ArcballCamera<f32>) -> CameraUniform {
+        CameraUniform {
+            eye_pos: camera.eye_pos().into(),
+            eye_dir: camera.eye_dir().into(),
+            up_dir: camera.up_dir().into(),
+        }
+    }
 }
 
 pub struct Application {
@@ -37,6 +56,7 @@ pub struct Application {
     _render_pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
 
+    uniform_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
     camera_op: CameraOperation,
     prev_cursor_pos: Option<PhysicalPosition<f64>>,
@@ -95,27 +115,58 @@ impl Application {
         });
 
         let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
+        let mut camera = ArcballCamera::new(
+            Vector3::new(278.0, 273.0, 0.0),
+            1.0,
+            [size.width as f32, size.height as f32],
+        );
+        camera.zoom(800.0, 1.0);
+
+        let uniform = CameraUniform::from(&camera);
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("uniform_buffer"),
+            contents: bytemuck::cast_slice(&[uniform]),
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        });
 
         let compute_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStage::COMPUTE,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: texture.format,
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: texture.format,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
                 label: Some("compute_bind_group_layout"),
             });
         let compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &compute_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture.view),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+            ],
             label: Some("compute_bind_group"),
         });
         let compute_pipeline_layout =
@@ -201,11 +252,8 @@ impl Application {
             _render_pipeline_layout: render_pipeline_layout,
             render_pipeline,
 
-            camera: ArcballCamera::new(
-                Vector3::new(0.0, 0.0, 0.0),
-                1.0,
-                [size.width as f32, size.height as f32],
-            ),
+            uniform_buffer,
+            camera,
             camera_op: CameraOperation::None,
             prev_cursor_pos: None,
         })
@@ -215,10 +263,16 @@ impl Application {
         self.texture = Texture::new(&self.device, (width, height), Some("texture"));
         self.compute_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.compute_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&self.texture.view),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&self.texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: self.uniform_buffer.as_entire_binding(),
+                },
+            ],
             label: Some("compute_bind_group"),
         });
         self.render_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -232,6 +286,8 @@ impl Application {
         self.sc_desc.width = width;
         self.sc_desc.height = height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+        self.camera.update_screen(width as f32, height as f32);
+        self.update_camera();
     }
 
     pub fn reload_compute_shader(&mut self, source: &str) -> Result<(), wgpu::Error> {
@@ -268,12 +324,20 @@ impl Application {
         Ok(())
     }
 
+    fn update_camera(&mut self) {
+        let uniform = CameraUniform::from(&self.camera);
+        println!("Updated camera: {:?}", uniform);
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]))
+    }
+
     pub fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
         let y = match delta {
             MouseScrollDelta::LineDelta(_, y) => y,
             MouseScrollDelta::PixelDelta(p) => p.y as f32,
         };
         self.camera.zoom(y, 0.16);
+        self.update_camera();
     }
 
     pub fn on_mouse_input(&mut self, state: ElementState, button: MouseButton) {
@@ -288,11 +352,13 @@ impl Application {
                 (MouseButton::Right, CameraOperation::Pan) => CameraOperation::None,
                 _ => self.camera_op,
             },
-        }
+        };
+        println!("Updated camera op: {:?}", self.camera_op);
     }
 
     pub fn on_cursor_moved(&mut self, pos: PhysicalPosition<f64>) {
         if self.prev_cursor_pos.is_none() {
+            self.prev_cursor_pos = Some(pos);
             return;
         }
         let prev = self.prev_cursor_pos.unwrap();
@@ -308,6 +374,7 @@ impl Application {
             CameraOperation::None => {}
         }
         self.prev_cursor_pos = Some(pos);
+        self.update_camera();
     }
 
     pub fn render(&mut self) {

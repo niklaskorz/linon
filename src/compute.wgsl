@@ -1,6 +1,15 @@
 [[group(0), binding(0)]]
 var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
 
+[[block]]
+struct Camera {
+    eye_pos: vec3<f32>;
+    eye_dir: vec3<f32>;
+    up_dir: vec3<f32>;
+};
+[[group(0), binding(1)]]
+var<uniform> camera: Camera;
+
 let white: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 let grey: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 let green: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
@@ -215,19 +224,26 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let aspect_ratio = width / height;
 
     // Camera properties
-    let origin = vec3<f32>(278.0, 273.0, -800.0);
-    let view_direction = vec3<f32>(0.0, 0.0, 1.0);
+    //let origin = vec3<f32>(278.0, 273.0, -800.0);
+    //let view_direction = vec3<f32>(0.0, 0.0, 1.0);
+    //let up = vec3<f32>(0.0, 1.0, 0.0);
+    let origin = camera.eye_pos;
+    let view_direction = -camera.eye_dir;
+    let up = camera.up_dir;
     let focal_length = 0.035;
     let viewport_height = 0.025;
     let viewport_width = aspect_ratio * viewport_height;
 
-    let horizontal = vec3<f32>(-1.0, 0.0, 0.0);
-    let vertical = vec3<f32>(0.0, 1.0, 0.0);
+    let w = -view_direction;
+    let horizontal = cross(up, w);
+    //let horizontal = vec3<f32>(-1.0, 0.0, 0.0);
+    let vertical = cross(w, horizontal);
+    //let vertical = vec3<f32>(0.0, 1.0, 0.0);
 
     let u = f32(gid.x) / (width - 1.0) * viewport_width - 0.5 * viewport_width;
     let v = f32(gid.y) / (height - 1.0) *  viewport_height - 0.5 * viewport_height;
-    let s = origin + u * horizontal + v * vertical + focal_length * view_direction;
-    let dir = normalize(s - origin);
+    let s = u * normalize(horizontal) + v * normalize(vertical) + focal_length * view_direction;
+    let dir = normalize(s);
     let color = ray_color(origin, dir);
 
     textureStore(target, coords, color);
