@@ -1,7 +1,21 @@
 use crate::texture::Texture;
 use anyhow::{Context, Result};
+use cgmath::{Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
-use winit::window::Window;
+use winit::{
+    dpi::PhysicalPosition,
+    event::{ElementState, MouseButton, MouseScrollDelta},
+    window::Window,
+};
+
+use arcball::ArcballCamera;
+
+#[derive(Debug, Copy, Clone)]
+enum CameraOperation {
+    None,
+    Rotate,
+    Pan,
+}
 
 pub struct Application {
     _instance: wgpu::Instance,
@@ -22,6 +36,10 @@ pub struct Application {
     render_bind_group: wgpu::BindGroup,
     _render_pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
+
+    camera: ArcballCamera<f32>,
+    camera_op: CameraOperation,
+    prev_cursor_pos: Option<PhysicalPosition<f64>>,
 }
 
 impl Application {
@@ -182,6 +200,14 @@ impl Application {
             render_bind_group,
             _render_pipeline_layout: render_pipeline_layout,
             render_pipeline,
+
+            camera: ArcballCamera::new(
+                Vector3::new(0.0, 0.0, 0.0),
+                1.0,
+                [size.width as f32, size.height as f32],
+            ),
+            camera_op: CameraOperation::None,
+            prev_cursor_pos: None,
         })
     }
 
@@ -209,11 +235,6 @@ impl Application {
     }
 
     pub fn reload_compute_shader(&mut self, source: &str) -> Result<(), wgpu::Error> {
-        #[cfg(not(target_arch = "wasm32"))]
-        let flags = wgpu::ShaderFlags::all();
-        #[cfg(target_arch = "wasm32")]
-        let flags = wgpu::ShaderFlags::VALIDATION;
-
         let (tx, rx) = channel::<wgpu::Error>();
         self.device.on_uncaptured_error(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
@@ -224,7 +245,7 @@ impl Application {
             .create_shader_module(&wgpu::ShaderModuleDescriptor {
                 label: Some("compute_shader"),
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
-                flags,
+                flags: wgpu::ShaderFlags::all(),
             });
         let compute_pipeline =
             self.device
@@ -245,6 +266,48 @@ impl Application {
         self.compute_pipeline = compute_pipeline;
 
         Ok(())
+    }
+
+    pub fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
+        let y = match delta {
+            MouseScrollDelta::LineDelta(_, y) => y,
+            MouseScrollDelta::PixelDelta(p) => p.y as f32,
+        };
+        self.camera.zoom(y, 0.16);
+    }
+
+    pub fn on_mouse_input(&mut self, state: ElementState, button: MouseButton) {
+        self.camera_op = match state {
+            ElementState::Pressed => match button {
+                MouseButton::Left => CameraOperation::Rotate,
+                MouseButton::Right => CameraOperation::Pan,
+                _ => self.camera_op,
+            },
+            ElementState::Released => match (button, self.camera_op) {
+                (MouseButton::Left, CameraOperation::Rotate) => CameraOperation::None,
+                (MouseButton::Right, CameraOperation::Pan) => CameraOperation::None,
+                _ => self.camera_op,
+            },
+        }
+    }
+
+    pub fn on_cursor_moved(&mut self, pos: PhysicalPosition<f64>) {
+        if self.prev_cursor_pos.is_none() {
+            return;
+        }
+        let prev = self.prev_cursor_pos.unwrap();
+        match self.camera_op {
+            CameraOperation::Rotate => self.camera.rotate(
+                Vector2::new(prev.x as f32, prev.y as f32),
+                Vector2::new(pos.x as f32, pos.y as f32),
+            ),
+            CameraOperation::Pan => self.camera.pan(
+                Vector2::new((pos.x - prev.x) as f32, (pos.y - prev.y) as f32),
+                1.0,
+            ),
+            CameraOperation::None => {}
+        }
+        self.prev_cursor_pos = Some(pos);
     }
 
     pub fn render(&mut self) {

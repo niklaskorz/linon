@@ -35,11 +35,23 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 event: WindowEvent::Resized(size),
                 ..
             } => app.resize(size.width, size.height),
-            Event::RedrawRequested(_) => app.render(),
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::MouseWheel { delta, .. },
+                ..
+            } => app.on_mouse_wheel(delta),
+            Event::WindowEvent {
+                event: WindowEvent::MouseInput { state, button, .. },
+                ..
+            } => app.on_mouse_input(state, button),
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                ..
+            } => app.on_cursor_moved(position),
+            Event::RedrawRequested(_) => app.render(),
             Event::MainEventsCleared => {
                 let mut reload_compute_shader = false;
                 for result in rx.try_iter() {
