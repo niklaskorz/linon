@@ -1,4 +1,5 @@
 mod application;
+mod arcball;
 mod texture;
 
 use anyhow::Result;

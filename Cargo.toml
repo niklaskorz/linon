@@ -9,14 +9,13 @@ edition = "2018"
 [dependencies]
 image = "0.23"
 winit = { version = "0.24", features = ["web-sys"] }
-cgmath = "0.17"
+cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
 bytemuck = { version = "1.4", features = ["derive"] }
 anyhow = "1.0"
 wgpu = "0.8"
 notify = "5.0.0-pre.7"
-arcball = "1.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.8"

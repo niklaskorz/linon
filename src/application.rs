@@ -1,3 +1,4 @@
+use crate::arcball::ArcballCamera;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::{Vector2, Vector3};
@@ -9,8 +10,6 @@ use winit::{
     window::Window,
 };
 
-use arcball::ArcballCamera;
-
 #[derive(Debug, Copy, Clone)]
 enum CameraOperation {
     None,
@@ -21,17 +20,20 @@ enum CameraOperation {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
-    eye_pos: [f32; 3],
-    eye_dir: [f32; 3],
-    up_dir: [f32; 3],
+    origin: [f32; 4],
+    view_direction: [f32; 4],
+    up: [f32; 4],
 }
 
 impl CameraUniform {
     fn from(camera: &ArcballCamera<f32>) -> CameraUniform {
+        let eye_pos = camera.eye_pos();
+        let eye_dir = camera.eye_dir();
+        let up_dir = camera.up_dir();
         CameraUniform {
-            eye_pos: camera.eye_pos().into(),
-            eye_dir: camera.eye_dir().into(),
-            up_dir: camera.up_dir().into(),
+            origin: [eye_pos.x, eye_pos.y, eye_pos.z, 0.0],
+            view_direction: [eye_dir.x, eye_dir.y, eye_dir.z, 0.0],
+            up: [up_dir.x, up_dir.y, up_dir.z, 0.0],
         }
     }
 }
@@ -116,13 +118,18 @@ impl Application {
 
         let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
         let mut camera = ArcballCamera::new(
-            Vector3::new(278.0, 273.0, 0.0),
+            Vector3::new(278.0, 273.0, 279.6),
             1.0,
             [size.width as f32, size.height as f32],
         );
-        camera.zoom(800.0, 1.0);
+        camera.zoom(1079.6, 1.0);
 
         let uniform = CameraUniform::from(&camera);
+        /*let uniform = CameraUniform {
+            origin: [278.0, 273.0, -800.0, 0.0],
+            view_direction: [0.0, 0.0, 1.0, 0.0],
+            up: [0.0, 1.0, 0.0, 0.0],
+        };*/
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("uniform_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
@@ -336,7 +343,7 @@ impl Application {
             MouseScrollDelta::LineDelta(_, y) => y,
             MouseScrollDelta::PixelDelta(p) => p.y as f32,
         };
-        self.camera.zoom(y, 0.16);
+        self.camera.zoom(y, 10.0);
         self.update_camera();
     }
 
@@ -353,7 +360,6 @@ impl Application {
                 _ => self.camera_op,
             },
         };
-        println!("Updated camera op: {:?}", self.camera_op);
     }
 
     pub fn on_cursor_moved(&mut self, pos: PhysicalPosition<f64>) {
@@ -367,10 +373,10 @@ impl Application {
                 Vector2::new(prev.x as f32, prev.y as f32),
                 Vector2::new(pos.x as f32, pos.y as f32),
             ),
-            CameraOperation::Pan => self.camera.pan(
-                Vector2::new((pos.x - prev.x) as f32, (pos.y - prev.y) as f32),
-                1.0,
-            ),
+            CameraOperation::Pan => self.camera.pan(Vector2::new(
+                (pos.x - prev.x) as f32,
+                (pos.y - prev.y) as f32,
+            )),
             CameraOperation::None => {}
         }
         self.prev_cursor_pos = Some(pos);
