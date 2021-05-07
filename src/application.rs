@@ -333,7 +333,6 @@ impl Application {
 
     fn update_camera(&mut self) {
         let uniform = CameraUniform::from(&self.camera);
-        println!("Updated camera: {:?}", uniform);
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]))
     }
@@ -369,18 +368,23 @@ impl Application {
         }
         let prev = self.prev_cursor_pos.unwrap();
         match self.camera_op {
-            CameraOperation::Rotate => self.camera.rotate(
-                Vector2::new(prev.x as f32, prev.y as f32),
-                Vector2::new(pos.x as f32, pos.y as f32),
-            ),
-            CameraOperation::Pan => self.camera.pan(Vector2::new(
-                (pos.x - prev.x) as f32,
-                (pos.y - prev.y) as f32,
-            )),
+            CameraOperation::Rotate => {
+                self.camera.rotate(
+                    Vector2::new(prev.x as f32, prev.y as f32),
+                    Vector2::new(pos.x as f32, pos.y as f32),
+                );
+                self.update_camera();
+            }
+            CameraOperation::Pan => {
+                self.camera.pan(Vector2::new(
+                    (pos.x - prev.x) as f32,
+                    (pos.y - prev.y) as f32,
+                ));
+                self.update_camera();
+            }
             CameraOperation::None => {}
         }
         self.prev_cursor_pos = Some(pos);
-        self.update_camera();
     }
 
     pub fn render(&mut self) {
