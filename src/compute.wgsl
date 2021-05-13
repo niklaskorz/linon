@@ -19,7 +19,7 @@ var<uniform> num_faces: NumFaces;
 
 [[block]]
 struct Vertices {
-    data: [[stride(12)]] array<f32>;
+    data: [[stride(4)]] array<f32>;
 };
 [[group(1), binding(0)]]
 var<storage> vertices: [[access(read)]] Vertices;

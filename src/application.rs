@@ -2,7 +2,7 @@ use crate::arcball::ArcballCamera;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::{Vector2, Vector3};
-use std::{borrow::Cow, sync::mpsc::channel};
+use std::{borrow::Cow, io::BufReader, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition,
@@ -113,7 +113,7 @@ impl Application {
             format: swapchain_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Mailbox,
+            present_mode: wgpu::PresentMode::Fifo,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
@@ -121,6 +121,18 @@ impl Application {
         let flags = wgpu::ShaderFlags::all();
         #[cfg(target_arch = "wasm32")]
         let flags = wgpu::ShaderFlags::VALIDATION;
+
+        let model_bytes = include_bytes!("suzanne.obj");
+        let mut model_reader = BufReader::new(&model_bytes[..]);
+        let (models, _) = tobj::load_obj_buf(
+            &mut model_reader,
+            &tobj::LoadOptions {
+                triangulate: true,
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )?;
+        let model = &models[0];
 
         let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -135,12 +147,9 @@ impl Application {
         });
 
         let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
-        let mut camera = ArcballCamera::new(
-            Vector3::new(0.0, 0.0, 0.6),
-            1.0,
-            [size.width as f32, size.height as f32],
-        );
-        // camera.zoom(1079.6, 1.0);
+
+        let center = get_center(&model.mesh.positions);
+        let camera = ArcballCamera::new(center, 1.0, [size.width as f32, size.height as f32]);
 
         let uniform = CameraUniform::from(&camera);
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -149,23 +158,23 @@ impl Application {
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
-        let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("vertices_buffer"),
-            contents: bytemuck::cast_slice(crate::cornell_box::VERTICES),
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
-        });
-
-        let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("faces_buffer"),
-            contents: bytemuck::cast_slice(crate::cornell_box::INDICES),
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
-        });
-
-        let num_faces = (crate::cornell_box::INDICES.len() / 3) as u32;
+        let num_faces = (model.mesh.indices.len() / 3) as u32;
         let num_faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("num_faces_buffer"),
             contents: bytemuck::cast_slice(&[num_faces]),
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("vertices_buffer"),
+            contents: bytemuck::cast_slice(&model.mesh.positions),
+            usage: wgpu::BufferUsage::STORAGE,
+        });
+
+        let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("faces_buffer"),
+            contents: bytemuck::cast_slice(&model.mesh.indices),
+            usage: wgpu::BufferUsage::STORAGE,
         });
 
         let compute_bind_group_layout =
@@ -369,6 +378,10 @@ impl Application {
                     binding: 1,
                     resource: self.uniform_buffer.as_entire_binding(),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.num_faces_buffer.as_entire_binding(),
+                },
             ],
             label: Some("compute_bind_group"),
         });
@@ -427,7 +440,7 @@ impl Application {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices_buffer"),
                 contents: bytemuck::cast_slice(&model.mesh.positions),
-                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+                usage: wgpu::BufferUsage::STORAGE,
             });
 
         let faces_buffer = self
@@ -435,7 +448,7 @@ impl Application {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
                 contents: bytemuck::cast_slice(&model.mesh.indices),
-                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+                usage: wgpu::BufferUsage::STORAGE,
             });
         self.mesh_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.mesh_bind_group_layout,
@@ -458,6 +471,14 @@ impl Application {
             0,
             bytemuck::cast_slice(&[num_faces]),
         );
+
+        let center = get_center(&model.mesh.positions);
+        self.camera = ArcballCamera::new(
+            center,
+            1.0,
+            [self.sc_desc.width as f32, self.sc_desc.height as f32],
+        );
+        self.update_camera();
     }
 
     fn update_camera(&mut self) {
@@ -566,4 +587,16 @@ impl Application {
 
         self.queue.submit(Some(encoder.finish()));
     }
+}
+
+fn get_center(vertices: &[f32]) -> Vector3<f32> {
+    let mut center = Vector3::new(0.0, 0.0, 0.0);
+    let num_vertices = vertices.len() / 3;
+    for i in 0..num_vertices {
+        center.x += vertices[3 * i];
+        center.y += vertices[3 * i + 1];
+        center.z += vertices[3 * i + 2];
+    }
+    center /= num_vertices as f32;
+    return center;
 }

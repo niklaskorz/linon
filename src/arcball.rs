@@ -62,11 +62,11 @@ impl<F: BaseFloat> ArcballCamera<F> {
         let two = F::from(2.0).unwrap();
         let m_cur = Vector2::new(
             clamp(mouse_cur.x * two * self.inv_screen[0] - one, -one, one),
-            clamp(two * mouse_cur.y * self.inv_screen[1] - one, -one, one),
+            clamp(one - two * mouse_cur.y * self.inv_screen[1], -one, one),
         );
         let m_prev = Vector2::new(
             clamp(mouse_prev.x * two * self.inv_screen[0] - one, -one, one),
-            clamp(two * mouse_prev.y * self.inv_screen[1] - one, -one, one),
+            clamp(one - two * mouse_prev.y * self.inv_screen[1], -one, one),
         );
         let mouse_cur_ball = ArcballCamera::screen_to_arcball(m_cur);
         let mouse_prev_ball = ArcballCamera::screen_to_arcball(m_prev);
@@ -85,11 +85,10 @@ impl<F: BaseFloat> ArcballCamera<F> {
         let zoom_dist = self.translation[3][3].abs();
         let delta = Vector4::new(
             mouse_delta.x * self.inv_screen[0],
-            mouse_delta.y * self.inv_screen[1],
+            -mouse_delta.y * self.inv_screen[1],
             F::zero(),
             F::zero(),
-        ) * zoom_dist
-            * F::from(100).unwrap();
+        ) * zoom_dist;
         let motion = self.inv_camera * delta;
         self.center_translation =
             Matrix4::from_translation(Vector3::new(motion.x, motion.y, motion.z))
