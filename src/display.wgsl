@@ -13,12 +13,12 @@ fn vs_main([[builtin(vertex_index)]] in_vertex_index: u32) -> [[builtin(position
 }
 
 [[group(0), binding(0)]]
-var texture: texture_2d<f32>;
+var texture: [[access(read)]] texture_storage_2d<rgba8unorm>;
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] position: vec4<f32>) -> [[location(0)]] vec4<f32> {
     let size = textureDimensions(texture);
     let x = i32(position.x);
     let y = size.y - 1 - i32(position.y);
-    return textureLoad(texture, vec2<i32>(x, y), 0);
+    return textureLoad(texture, vec2<i32>(x, y));
 }
