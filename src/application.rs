@@ -1,8 +1,9 @@
 use crate::arcball::ArcballCamera;
+use crate::cornell_box as cbox;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::{Vector2, Vector3};
-use std::{borrow::Cow, io::BufReader, sync::mpsc::channel};
+use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition,
@@ -122,17 +123,14 @@ impl Application {
         #[cfg(target_arch = "wasm32")]
         let flags = wgpu::ShaderFlags::VALIDATION;
 
-        let model_bytes = include_bytes!("suzanne.obj");
-        let mut model_reader = BufReader::new(&model_bytes[..]);
-        let (models, _) = tobj::load_obj_buf(
-            &mut model_reader,
-            &tobj::LoadOptions {
-                triangulate: true,
-                ..Default::default()
-            },
-            |_| unreachable!(),
-        )?;
-        let model = &models[0];
+        let mut vertices = cbox::VERTICES;
+        for i in 0..(vertices.len() / 3) {
+            // Invert x and z axis
+            vertices[3 * i] = -vertices[3 * i];
+            vertices[3 * i + 2] = -vertices[3 * i + 2];
+        }
+        normalize_vertices(&mut vertices);
+        let indices = cbox::INDICES;
 
         let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -148,8 +146,9 @@ impl Application {
 
         let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
 
-        let center = get_center(&model.mesh.positions);
-        let camera = ArcballCamera::new(center, 1.0, [size.width as f32, size.height as f32]);
+        let center = get_center(&vertices);
+        let mut camera = ArcballCamera::new(center, 1.0, [size.width as f32, size.height as f32]);
+        camera.zoom(-1.0, 1.0);
 
         let uniform = CameraUniform::from(&camera);
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -158,7 +157,7 @@ impl Application {
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
-        let num_faces = (model.mesh.indices.len() / 3) as u32;
+        let num_faces = (cbox::INDICES.len() / 3) as u32;
         let num_faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("num_faces_buffer"),
             contents: bytemuck::cast_slice(&[num_faces]),
@@ -167,13 +166,13 @@ impl Application {
 
         let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("vertices_buffer"),
-            contents: bytemuck::cast_slice(&model.mesh.positions),
+            contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsage::STORAGE,
         });
 
         let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("faces_buffer"),
-            contents: bytemuck::cast_slice(&model.mesh.indices),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsage::STORAGE,
         });
 
@@ -435,11 +434,15 @@ impl Application {
     }
 
     pub fn load_model(&mut self, model: &tobj::Model) {
+        let mut vertices = model.mesh.positions.clone();
+        normalize_vertices(&mut vertices);
+        let indices = &model.mesh.indices;
+
         let vertices_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices_buffer"),
-                contents: bytemuck::cast_slice(&model.mesh.positions),
+                contents: bytemuck::cast_slice(&vertices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
 
@@ -447,7 +450,7 @@ impl Application {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
-                contents: bytemuck::cast_slice(&model.mesh.indices),
+                contents: bytemuck::cast_slice(indices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
         self.mesh_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -465,14 +468,14 @@ impl Application {
             label: Some("mesh_bind_group"),
         });
 
-        let num_faces = (model.mesh.indices.len() / 3) as u32;
+        let num_faces = (indices.len() / 3) as u32;
         self.queue.write_buffer(
             &self.num_faces_buffer,
             0,
             bytemuck::cast_slice(&[num_faces]),
         );
 
-        let center = get_center(&model.mesh.positions);
+        let center = get_center(&vertices);
         self.camera = ArcballCamera::new(
             center,
             1.0,
@@ -589,14 +592,58 @@ impl Application {
     }
 }
 
-fn get_center(vertices: &[f32]) -> Vector3<f32> {
-    let mut center = Vector3::new(0.0, 0.0, 0.0);
-    let num_vertices = vertices.len() / 3;
-    for i in 0..num_vertices {
-        center.x += vertices[3 * i];
-        center.y += vertices[3 * i + 1];
-        center.z += vertices[3 * i + 2];
+fn normalize_vertices(vertices: &mut [f32]) {
+    let mut max: f32 = 1.0;
+    let mut min: f32 = -1.0;
+    for (i, x) in vertices.iter().enumerate() {
+        if i == 0 || *x > max {
+            max = *x;
+        }
+        if i == 0 || *x < min {
+            min = *x;
+        }
     }
-    center /= num_vertices as f32;
-    return center;
+    for x in vertices.iter_mut() {
+        *x = (*x - min) / (max - min) * 2.0 - 1.0;
+    }
+}
+
+fn get_center(vertices: &[f32]) -> Vector3<f32> {
+    let mut min_x = vertices[0];
+    let mut min_y = vertices[1];
+    let mut min_z = vertices[2];
+    let mut max_x = vertices[0];
+    let mut max_y = vertices[1];
+    let mut max_z = vertices[2];
+
+    let num_vertices = vertices.len() / 3;
+    for i in 1..num_vertices {
+        let x = vertices[3 * i];
+        if x < min_x {
+            min_x = x;
+        }
+        if x > max_x {
+            max_x = x;
+        }
+        let y = vertices[3 * i + 1];
+        if y < min_y {
+            min_y = y;
+        }
+        if y > max_y {
+            max_y = y;
+        }
+        let z = vertices[3 * i + 2];
+        if z < min_z {
+            min_z = z;
+        }
+        if z > max_z {
+            max_z = z;
+        }
+    }
+
+    Vector3::new(
+        (min_x + max_x) / 2.0,
+        (min_y + max_y) / 2.0,
+        (min_z + max_z) / 2.0,
+    )
 }

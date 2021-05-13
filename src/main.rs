@@ -1,11 +1,12 @@
 mod application;
 mod arcball;
+mod cornell_box;
 mod texture;
 
 use anyhow::Result;
 use application::Application;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
 use winit::{
     dpi::PhysicalSize,
@@ -14,19 +15,24 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<RecommendedWatcher> {
+    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| {
+        tx.send(res).expect("sending watch event failed");
+    })?;
+    watcher.watch("src/compute.wgsl", RecursiveMode::NonRecursive)?;
+    Ok(watcher)
+}
+
 async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut app = Application::new(&window)
         .await
         .expect("creation of application failed");
 
     let (tx, rx) = channel::<notify::Result<notify::Event>>();
-    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| {
-        tx.send(res).expect("sending watch event failed");
-    })
-    .expect("creation of watcher failed");
-    watcher
-        .watch("src/compute.wgsl", RecursiveMode::NonRecursive)
-        .expect("watching failed");
+    let watcher = start_watcher(tx);
+    if let Err(e) = watcher {
+        println!("Hot reloading disabled, watcher creation failed: {:?}", e);
+    }
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
