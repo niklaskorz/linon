@@ -136,11 +136,11 @@ impl Application {
 
         let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
         let mut camera = ArcballCamera::new(
-            Vector3::new(278.0, 273.0, 279.6),
+            Vector3::new(0.0, 0.0, 0.6),
             1.0,
             [size.width as f32, size.height as f32],
         );
-        camera.zoom(1079.6, 1.0);
+        // camera.zoom(1079.6, 1.0);
 
         let uniform = CameraUniform::from(&camera);
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -471,7 +471,7 @@ impl Application {
             MouseScrollDelta::LineDelta(_, y) => y,
             MouseScrollDelta::PixelDelta(p) => p.y as f32,
         };
-        self.camera.zoom(y, 10.0);
+        self.camera.zoom(y, 1.0 / 60.0);
         self.update_camera();
     }
 

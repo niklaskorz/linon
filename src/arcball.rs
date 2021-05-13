@@ -45,7 +45,7 @@ impl<F: BaseFloat> ArcballCamera<F> {
     }
     /// Get the camera view direction
     pub fn eye_dir(&self) -> Vector3<F> {
-        let dir = self.inv_camera * Vector4::new(F::zero(), F::zero(), F::one(), F::zero());
+        let dir = self.inv_camera * Vector4::new(F::zero(), F::zero(), -F::one(), F::zero());
         Vector3::new(dir.x, dir.y, dir.z).normalize()
     }
     /// Get the camera view direction

@@ -48,8 +48,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     )
                     .expect("failed to load obj file");
                     println!("Number of models: {}", models.len());
-                    println!("Presenting first model...");
+                    println!("Loading first model...");
                     app.load_model(&models[0]);
+                    println!("Finished loading");
                 }
             }
             Event::WindowEvent {
