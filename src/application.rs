@@ -25,6 +25,20 @@ struct CameraUniform {
     up: [f32; 4],
 }
 
+#[repr(C)]
+#[derive(Debug, Clone)]
+struct Vertices {
+    length: u32,
+    data: Vec<u32>,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+struct Faces {
+    length: u32,
+    data: Vec<u32>,
+}
+
 impl CameraUniform {
     fn from(camera: &ArcballCamera<f32>) -> CameraUniform {
         let eye_pos = camera.eye_pos();
@@ -62,6 +76,10 @@ pub struct Application {
     camera: ArcballCamera<f32>,
     camera_op: CameraOperation,
     prev_cursor_pos: Option<PhysicalPosition<f64>>,
+
+    mesh_bind_group_layout: wgpu::BindGroupLayout,
+    mesh_bind_group: wgpu::BindGroup,
+    num_faces_buffer: wgpu::Buffer,
 }
 
 impl Application {
@@ -125,14 +143,28 @@ impl Application {
         camera.zoom(1079.6, 1.0);
 
         let uniform = CameraUniform::from(&camera);
-        /*let uniform = CameraUniform {
-            origin: [278.0, 273.0, -800.0, 0.0],
-            view_direction: [0.0, 0.0, 1.0, 0.0],
-            up: [0.0, 1.0, 0.0, 0.0],
-        };*/
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("uniform_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("vertices_buffer"),
+            contents: bytemuck::cast_slice(crate::cornell_box::VERTICES),
+            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("faces_buffer"),
+            contents: bytemuck::cast_slice(crate::cornell_box::INDICES),
+            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let num_faces = (crate::cornell_box::INDICES.len() / 3) as u32;
+        let num_faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("num_faces_buffer"),
+            contents: bytemuck::cast_slice(&[num_faces]),
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
@@ -159,6 +191,16 @@ impl Application {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("compute_bind_group_layout"),
             });
@@ -173,13 +215,57 @@ impl Application {
                     binding: 1,
                     resource: uniform_buffer.as_entire_binding(),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: num_faces_buffer.as_entire_binding(),
+                },
             ],
             label: Some("compute_bind_group"),
+        });
+        let mesh_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("mesh_bind_group_layout"),
+            });
+        let mesh_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &mesh_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: vertices_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: faces_buffer.as_entire_binding(),
+                },
+            ],
+            label: Some("mesh_bind_group"),
         });
         let compute_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("compute_pipeline_layout"),
-                bind_group_layouts: &[&compute_bind_group_layout],
+                bind_group_layouts: &[&compute_bind_group_layout, &mesh_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -263,6 +349,10 @@ impl Application {
             camera,
             camera_op: CameraOperation::None,
             prev_cursor_pos: None,
+
+            mesh_bind_group_layout,
+            mesh_bind_group,
+            num_faces_buffer,
         })
     }
 
@@ -329,6 +419,45 @@ impl Application {
         self.compute_pipeline = compute_pipeline;
 
         Ok(())
+    }
+
+    pub fn load_model(&mut self, model: &tobj::Model) {
+        let vertices_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("vertices_buffer"),
+                contents: bytemuck::cast_slice(&model.mesh.positions),
+                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            });
+
+        let faces_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("faces_buffer"),
+                contents: bytemuck::cast_slice(&model.mesh.indices),
+                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            });
+        self.mesh_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.mesh_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: vertices_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: faces_buffer.as_entire_binding(),
+                },
+            ],
+            label: Some("mesh_bind_group"),
+        });
+
+        let num_faces = (model.mesh.indices.len() / 3) as u32;
+        self.queue.write_buffer(
+            &self.num_faces_buffer,
+            0,
+            bytemuck::cast_slice(&[num_faces]),
+        );
     }
 
     fn update_camera(&mut self) {
@@ -406,6 +535,7 @@ impl Application {
             });
             cpass.set_pipeline(&self.compute_pipeline);
             cpass.set_bind_group(0, &self.compute_bind_group, &[]);
+            cpass.set_bind_group(1, &self.mesh_bind_group, &[]);
             cpass.dispatch(
                 (self.sc_desc.width + 7) / 8,
                 (self.sc_desc.height + 7) / 8,

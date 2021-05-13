@@ -10,141 +10,26 @@ struct Camera {
 [[group(0), binding(1)]]
 var<uniform> camera: Camera;
 
-let white: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-let grey: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
-let green: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
-let red: vec3<f32> = vec3<f32>(1.0, 0.0, 0.0);
-let blue: vec3<f32> = vec3<f32>(0.0, 0.0, 1.0);
-let yellow: vec3<f32> = vec3<f32>(1.0, 1.0, 0.0);
-let brown: vec3<f32> = vec3<f32>(0.59, 0.29, 0.0);
+[[block]]
+struct NumFaces {
+    length: u32; // Needed until arrayLength lands in wgpu-rs
+};
+[[group(0), binding(2)]]
+var<uniform> num_faces: NumFaces;
 
-let num_quads: i32 = 18;
-let num_vertices: i32 = 72; // num_quads * 4
-let vertices: array<vec3<f32>, num_vertices> = array<vec3<f32>, num_vertices>(
-    // Floor
-    vec3<f32>(552.8, 0.0,   0.0),
-    vec3<f32>(0.0,   0.0,   0.0),
-    vec3<f32>(0.0,   0.0, 559.2),
-    vec3<f32>(549.6, 0.0, 559.2),
+[[block]]
+struct Vertices {
+    data: [[stride(12)]] array<f32>;
+};
+[[group(1), binding(0)]]
+var<storage> vertices: [[access(read)]] Vertices;
 
-    vec3<f32>(130.0, 0.0,  65.0),
-    vec3<f32>( 82.0, 0.0, 225.0),
-    vec3<f32>(240.0, 0.0, 272.0),
-    vec3<f32>(290.0, 0.0, 114.0),
-
-    vec3<f32>(423.0, 0.0, 247.0),
-    vec3<f32>(265.0, 0.0, 296.0),
-    vec3<f32>(314.0, 0.0, 456.0),
-    vec3<f32>(472.0, 0.0, 406.0),
-
-    // Ceiling
-    vec3<f32>(556.0, 548.8,   0.0),
-    vec3<f32>(556.0, 548.8, 559.2),
-    vec3<f32>(  0.0, 548.8, 559.2),
-    vec3<f32>(  0.0, 548.8,   0.0),
-
-    vec3<f32>(343.0, 548.8, 227.0),
-    vec3<f32>(343.0, 548.8, 332.0),
-    vec3<f32>(213.0, 548.8, 332.0),
-    vec3<f32>(213.0, 548.8, 227.0),
-
-    // Back wall
-    vec3<f32>(549.6,   0.0, 559.2),
-    vec3<f32>(  0.0,   0.0, 559.2),
-    vec3<f32>(  0.0, 548.8, 559.2),
-    vec3<f32>(556.0, 548.8, 559.2),
-
-    // Right wall
-    vec3<f32>(0.0,   0.0, 559.2),
-    vec3<f32>(0.0,   0.0,   0.0),
-    vec3<f32>(0.0, 548.8,   0.0),
-    vec3<f32>(0.0, 548.8, 559.2),
-
-    // Left wall
-    vec3<f32>(552.8,   0.0,   0.0),
-    vec3<f32>(549.6,   0.0, 559.2),
-    vec3<f32>(556.0, 548.8, 559.2),
-    vec3<f32>(556.0, 548.8,   0.0),
-
-    // Short block
-    vec3<f32>(130.0, 165.0,  65.0),
-    vec3<f32>( 82.0, 165.0, 225.0),
-    vec3<f32>(240.0, 165.0, 272.0),
-    vec3<f32>(290.0, 165.0, 114.0),
-
-    vec3<f32>(290.0,   0.0, 114.0),
-    vec3<f32>(290.0, 165.0, 114.0),
-    vec3<f32>(240.0, 165.0, 272.0),
-    vec3<f32>(240.0,   0.0, 272.0),
-
-    vec3<f32>(130.0,   0.0,  65.0),
-    vec3<f32>(130.0, 165.0,  65.0),
-    vec3<f32>(290.0, 165.0, 114.0),
-    vec3<f32>(290.0,   0.0, 114.0),
-
-    vec3<f32>( 82.0,   0.0, 225.0),
-    vec3<f32>( 82.0, 165.0, 225.0),
-    vec3<f32>(130.0, 165.0,  65.0),
-    vec3<f32>(130.0,   0.0,  65.0),
-
-    vec3<f32>(240.0,   0.0, 272.0),
-    vec3<f32>(240.0, 165.0, 272.0),
-    vec3<f32>( 82.0, 165.0, 225.0),
-    vec3<f32>( 82.0,   0.0, 225.0),
-
-    // Tall block
-    vec3<f32>(423.0, 330.0, 247.0),
-    vec3<f32>(265.0, 330.0, 296.0),
-    vec3<f32>(314.0, 330.0, 456.0),
-    vec3<f32>(472.0, 330.0, 406.0),
-
-    vec3<f32>(423.0,   0.0, 247.0),
-    vec3<f32>(423.0, 330.0, 247.0),
-    vec3<f32>(472.0, 330.0, 406.0),
-    vec3<f32>(472.0,   0.0, 406.0),
-
-    vec3<f32>(472.0,   0.0, 406.0),
-    vec3<f32>(472.0, 330.0, 406.0),
-    vec3<f32>(314.0, 330.0, 456.0),
-    vec3<f32>(314.0,   0.0, 456.0),
-
-    vec3<f32>(314.0,   0.0, 456.0),
-    vec3<f32>(314.0, 330.0, 456.0),
-    vec3<f32>(265.0, 330.0, 296.0),
-    vec3<f32>(265.0,   0.0, 296.0),
-
-    vec3<f32>(265.0,   0.0, 296.0),
-    vec3<f32>(265.0, 330.0, 296.0),
-    vec3<f32>(423.0, 330.0, 247.0),
-    vec3<f32>(423.0,   0.0, 247.0),
-);
-let colors: array<vec3<f32>, num_quads> = array<vec3<f32>, num_quads>(
-    // Floor
-    grey,
-    grey,
-    grey,
-    // Ceiling
-    white,
-    white,
-    // Back wall
-    blue,
-    // Right wall
-    green,
-    // Left wall
-    red,
-    // Short block
-    yellow,
-    yellow,
-    yellow,
-    yellow,
-    yellow,
-    // Tall block
-    brown,
-    brown,
-    brown,
-    brown,
-    brown,
-);
+[[block]]
+struct Faces {
+    data: [[stride(12)]] array<array<u32, 3>>;
+};
+[[group(1), binding(1)]]
+var<storage> faces: [[access(read)]] Faces;
 
 fn hit_sphere(center: vec3<f32>, radius: f32, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
     let oc = origin - center;
@@ -189,24 +74,29 @@ fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>)
 fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     var t: f32 = -1.0;
     var t_new: f32;
-    var ic: i32;
-    for (var i: i32 = 0; i < num_quads; i = i + 1) {
-        let t0 = array<vec3<f32>, 3>(vertices[(i*4)], vertices[(i*4)+1], vertices[(i*4)+2]);
-        let t1 = array<vec3<f32>, 3>(vertices[(i*4)+2], vertices[(i*4)+3], vertices[(i*4)]);
-        t_new = hit_triangle(t0, origin, direction);
-        if (t_new < 0.0) {
-            t_new = hit_triangle(t1, origin, direction);
-        }
+    var d1: vec3<f32>;
+    var d2: vec3<f32>;
+    for (var i: u32 = 0u; i < num_faces.length; i = i + 1u) {
+        let indices = faces.data[i];
+        let x = indices[0];
+        let y = indices[1];
+        let z = indices[2];
+        let triangle = array<vec3<f32>, 3>(
+            vec3<f32>(vertices.data[3u * x], vertices.data[3u * x + 1u], vertices.data[3u * x + 2u]),
+            vec3<f32>(vertices.data[3u * y], vertices.data[3u * y + 1u], vertices.data[3u * y + 2u]),
+            vec3<f32>(vertices.data[3u * z], vertices.data[3u * z + 1u], vertices.data[3u * z + 2u]),
+        );
+        t_new = hit_triangle(triangle, origin, direction);
         if (t_new > 0.0 && (t < 0.0 || t_new < t)) {
             t = t_new;
-            ic = i; 
+            d1 = triangle[1] - triangle[0];
+            d2 = triangle[2] - triangle[0];
         }
     }
     if (t > 0.0) {
-        let normal = normalize(cross(vertices[(ic*4)+1] - vertices[(ic*4)], vertices[(ic*4)+2] - vertices[(ic*4)]));
+        let normal = normalize(cross(d1, d2));
         let color = abs(normal);
-        //return vec4<f32>(color, 1.0);
-        return vec4<f32>(colors[ic], 1.0);
+        return vec4<f32>(color, 1.0);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
@@ -242,5 +132,4 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let color = ray_color(origin, dir);
 
     textureStore(target, coords, color);
-    //textureStore(target, coords, vec4<f32>(view_direction, 1.0));
 }

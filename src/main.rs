@@ -1,12 +1,13 @@
 mod application;
 mod arcball;
+mod cornell_box;
 mod texture;
 
 use anyhow::Result;
 use application::Application;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::fs;
 use std::sync::mpsc::channel;
+use std::{ffi::OsStr, fs};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -24,7 +25,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         tx.send(res).expect("sending watch event failed");
     })
     .expect("creation of watcher failed");
-    // let path = fs::canonicalize("src/compute.wgsl").expect("canonicalization of path failed");
     watcher
         .watch("src/compute.wgsl", RecursiveMode::NonRecursive)
         .expect("watching failed");
@@ -32,6 +32,26 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
+            Event::WindowEvent {
+                event: WindowEvent::DroppedFile(path),
+                ..
+            } => {
+                println!("File dropped: {:?}", path);
+                if path.extension().and_then(OsStr::to_str) == Some("obj") {
+                    println!("Loading object...");
+                    let (models, _) = tobj::load_obj(
+                        &path,
+                        &tobj::LoadOptions {
+                            triangulate: true,
+                            ..Default::default()
+                        },
+                    )
+                    .expect("failed to load obj file");
+                    println!("Number of models: {}", models.len());
+                    println!("Presenting first model...");
+                    app.load_model(&models[0]);
+                }
+            }
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
