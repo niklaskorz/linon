@@ -17,31 +17,31 @@ struct NumFaces {
 [[group(0), binding(2)]]
 var<uniform> num_faces: NumFaces;
 
+struct Vertex {
+    x: f32;
+    y: f32;
+    z: f32;
+};
+
 [[block]]
 struct Vertices {
-    data: [[stride(4)]] array<f32>;
+    data: [[stride(12)]] array<Vertex>;
 };
 [[group(1), binding(0)]]
 var<storage> vertices: [[access(read)]] Vertices;
 
+struct Face {
+    a: u32;
+    b: u32;
+    c: u32;
+};
+
 [[block]]
 struct Faces {
-    data: [[stride(12)]] array<array<u32, 3>>;
+    data: [[stride(12)]] array<Face>;
 };
 [[group(1), binding(1)]]
 var<storage> faces: [[access(read)]] Faces;
-
-fn hit_sphere(center: vec3<f32>, radius: f32, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
-    let oc = origin - center;
-    let a = dot(direction, direction);
-    let half_b = dot(oc, direction);
-    let c = dot(oc, oc) - radius * radius;
-    let discriminant = half_b * half_b - a * c;
-    if (discriminant < 0.0) {
-        return -1.0;
-    }
-    return (-half_b - sqrt(discriminant)) / a;
-}
 
 let eps: f32 = 0.0000001;
 
@@ -77,14 +77,14 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     var d1: vec3<f32>;
     var d2: vec3<f32>;
     for (var i: u32 = 0u; i < num_faces.length; i = i + 1u) {
-        let indices = faces.data[i];
-        let x = indices[0];
-        let y = indices[1];
-        let z = indices[2];
+        let face = faces.data[i];
+        let a = vertices.data[face.a];
+        let b = vertices.data[face.b];
+        let c = vertices.data[face.c];
         let triangle = array<vec3<f32>, 3>(
-            vec3<f32>(vertices.data[3u * x], vertices.data[3u * x + 1u], vertices.data[3u * x + 2u]),
-            vec3<f32>(vertices.data[3u * y], vertices.data[3u * y + 1u], vertices.data[3u * y + 2u]),
-            vec3<f32>(vertices.data[3u * z], vertices.data[3u * z + 1u], vertices.data[3u * z + 2u]),
+            vec3<f32>(a.x, a.y, a.z),
+            vec3<f32>(b.x, b.y, b.z),
+            vec3<f32>(c.x, c.y, c.z),
         );
         t_new = hit_triangle(triangle, origin, direction);
         if (t_new > 0.0 && (t < 0.0 || t_new < t)) {
