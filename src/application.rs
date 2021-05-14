@@ -80,7 +80,6 @@ pub struct Application {
 
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
-    num_faces_buffer: wgpu::Buffer,
 }
 
 impl Application {
@@ -130,7 +129,8 @@ impl Application {
             vertices[3 * i + 2] = -vertices[3 * i + 2];
         }
         normalize_vertices(&mut vertices);
-        let indices = cbox::INDICES;
+        let mut indices = vec![cbox::NUM_FACES];
+        indices.extend(cbox::INDICES.iter());
 
         let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -154,13 +154,6 @@ impl Application {
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("uniform_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
-            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
-        });
-
-        let num_faces = (cbox::INDICES.len() / 3) as u32;
-        let num_faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("num_faces_buffer"),
-            contents: bytemuck::cast_slice(&[num_faces]),
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
@@ -199,16 +192,6 @@ impl Application {
                         },
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStage::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
                 ],
                 label: Some("compute_bind_group_layout"),
             });
@@ -222,10 +205,6 @@ impl Application {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: num_faces_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
@@ -360,7 +339,6 @@ impl Application {
 
             mesh_bind_group_layout,
             mesh_bind_group,
-            num_faces_buffer,
         })
     }
 
@@ -376,10 +354,6 @@ impl Application {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: self.uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: self.num_faces_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
@@ -436,7 +410,9 @@ impl Application {
     pub fn load_model(&mut self, model: &tobj::Model) {
         let mut vertices = model.mesh.positions.clone();
         normalize_vertices(&mut vertices);
-        let indices = &model.mesh.indices;
+        let num_faces = (model.mesh.indices.len() / 3) as u32;
+        let mut indices = vec![num_faces];
+        indices.extend(model.mesh.indices.iter());
 
         let vertices_buffer = self
             .device
@@ -445,14 +421,14 @@ impl Application {
                 contents: bytemuck::cast_slice(&vertices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
-
         let faces_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
-                contents: bytemuck::cast_slice(indices),
+                contents: bytemuck::cast_slice(&indices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
+
         self.mesh_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.mesh_bind_group_layout,
             entries: &[
@@ -467,13 +443,6 @@ impl Application {
             ],
             label: Some("mesh_bind_group"),
         });
-
-        let num_faces = (indices.len() / 3) as u32;
-        self.queue.write_buffer(
-            &self.num_faces_buffer,
-            0,
-            bytemuck::cast_slice(&[num_faces]),
-        );
 
         let center = get_center(&vertices);
         self.camera = ArcballCamera::new(
