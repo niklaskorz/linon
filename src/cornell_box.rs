@@ -161,5 +161,3 @@ pub const INDICES: [u32; 108] = [
     68, 69, 70,
     70, 71, 68,
 ];
-
-pub const NUM_FACES: u32 = 36;
