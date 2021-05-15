@@ -4,14 +4,14 @@ name: CICD
 on: [push]
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v1
 
-      - name: Install latest rust toolchain
+      - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -19,14 +19,14 @@ jobs:
           override: true
 
       - name: Build
-        run: cargo build --all --release && strip target/release/linon && mv target/release/linon target/release/linon_amd64
+        run: cargo build --all --release && strip target/release/linon
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/linon_amd64
+            target/release/linon
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -37,7 +37,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
 
-      - name: Install latest rust toolchain
+      - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -62,7 +62,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
 
-      - name: Install latest rust toolchain
+      - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -70,14 +70,14 @@ jobs:
           default: true
           override: true
 
-      - name: Build for mac
-        run: cargo build --all --release && strip target/release/linon && mv target/release/linon target/release/linon_darwin
+      - name: Build
+        run: cargo build --all --release && strip target/release/linon && mv target/release/linon target/release/linon_macos
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/linon_darwin
+            target/release/linon_macos
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
