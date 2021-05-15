@@ -129,8 +129,6 @@ impl Application {
             vertices[3 * i + 2] = -vertices[3 * i + 2];
         }
         normalize_vertices(&mut vertices);
-        let mut indices = vec![cbox::NUM_FACES];
-        indices.extend(&cbox::INDICES);
 
         let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -165,7 +163,7 @@ impl Application {
 
         let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("faces_buffer"),
-            contents: bytemuck::cast_slice(&indices),
+            contents: bytemuck::cast_slice(&cbox::INDICES),
             usage: wgpu::BufferUsage::STORAGE,
         });
 
@@ -410,9 +408,6 @@ impl Application {
     pub fn load_model(&mut self, model: &tobj::Model) {
         let mut vertices = model.mesh.positions.clone();
         normalize_vertices(&mut vertices);
-        let num_faces = (model.mesh.indices.len() / 3) as u32;
-        let mut indices = vec![num_faces];
-        indices.extend(&model.mesh.indices);
 
         let vertices_buffer = self
             .device
@@ -425,7 +420,7 @@ impl Application {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
-                contents: bytemuck::cast_slice(&indices),
+                contents: bytemuck::cast_slice(&model.mesh.indices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
 
