@@ -36,6 +36,11 @@ struct Faces {
 [[group(1), binding(1)]]
 var<storage> faces: [[access(read)]] Faces;
 
+let use_lighting: bool = false;
+let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+let ambient_strength: f32 = 0.1;
+let object_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+
 let eps: f32 = 0.0000001;
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
@@ -88,8 +93,22 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     }
     if (t > 0.0) {
         let normal = normalize(cross(d1, d2));
-        let color = abs(normal);
-        return vec4<f32>(color, 1.0);
+        if (!use_lighting) {
+            let color = abs(normal);
+            return vec4<f32>(color, 1.0);
+        }
+        let ambient = ambient_strength * light_color;
+        let normal = normalize(cross(d1, d2));
+        let light_dir = normalize(origin - (origin + t * direction));
+        let diff = max(dot(normal, light_dir), 0.0);
+        let diffuse = diff * light_color;
+        let specular_length = 0.5;
+        let view_dir = -t * direction;
+        let reflect_dir = reflect(-light_dir, normal);
+        let spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0);
+        let specular = specular_length * spec * light_color;
+        let result = (ambient + diffuse + specular) * object_color;
+        return vec4<f32>(result, 1.0);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
