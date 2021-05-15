@@ -395,7 +395,7 @@ impl Application {
                     entry_point: "main",
                 });
 
-        self.device.on_uncaptured_error(|e| panic!(e));
+        self.device.on_uncaptured_error(|e| panic!("{}", e));
 
         if let Ok(err) = rx.try_recv() {
             return Err(err);
