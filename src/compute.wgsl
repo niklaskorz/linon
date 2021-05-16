@@ -36,7 +36,6 @@ struct Faces {
 [[group(1), binding(1)]]
 var<storage> faces: [[access(read)]] Faces;
 
-let use_lighting: bool = false;
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 let ambient_strength: f32 = 0.1;
 let object_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
@@ -69,6 +68,8 @@ fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>)
     return -1.0;
 }
 
+let use_lighting: bool = false;
+
 fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     var t: f32 = -1.0;
     var t_new: f32;
@@ -98,8 +99,7 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
             return vec4<f32>(color, 1.0);
         }
         let ambient = ambient_strength * light_color;
-        let normal = normalize(cross(d1, d2));
-        let light_dir = normalize(origin - (origin + t * direction));
+        let light_dir = -direction; // camera is the light source for now
         let diff = max(dot(normal, light_dir), 0.0);
         let diffuse = diff * light_color;
         let specular_length = 0.5;
