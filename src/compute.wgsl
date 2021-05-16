@@ -37,7 +37,8 @@ struct Faces {
 var<storage> faces: [[access(read)]] Faces;
 
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-let ambient_strength: f32 = 0.0;
+let ambient_strength: f32 = 0.01;
+let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 
 let eps: f32 = 0.0000001;
@@ -102,11 +103,8 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
         let light_dir = -direction; // camera is the light source for now
         let diff = max(dot(normal, light_dir), 0.0);
         let diffuse = diff * light_color;
-        let specular_length = 0.5;
-        let view_dir = -t * direction;
-        let reflect_dir = reflect(-light_dir, normal);
-        let spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0);
-        let specular = specular_length * spec * light_color;
+        let spec = pow(max(dot(normal, -direction), 0.0), shininess);
+        let specular = spec * light_color;
         let result = (ambient + diffuse + specular) * object_color;
         return vec4<f32>(result, 1.0);
     }
