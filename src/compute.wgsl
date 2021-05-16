@@ -37,7 +37,7 @@ struct Faces {
 var<storage> faces: [[access(read)]] Faces;
 
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-let ambient_strength: f32 = 0.1;
+let ambient_strength: f32 = 0.0;
 let object_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 
 let eps: f32 = 0.0000001;
@@ -68,7 +68,7 @@ fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>)
     return -1.0;
 }
 
-let use_lighting: bool = false;
+let use_lighting: bool = true;
 
 fn ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
     var t: f32 = -1.0;
