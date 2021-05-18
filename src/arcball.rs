@@ -10,6 +10,7 @@ use cgmath::{BaseFloat, Matrix4, Quaternion, Vector2, Vector3, Vector4};
 
 /// The Shoemake Arcball camera.
 pub struct ArcballCamera<F> {
+    pub center: Vector3<F>,
     translation: Matrix4<F>,
     center_translation: Matrix4<F>,
     rotation: Quaternion<F>,
@@ -24,6 +25,7 @@ impl<F: BaseFloat> ArcballCamera<F> {
     /// `screen` should be `[screen_width, screen_height]`.
     pub fn new(center: Vector3<F>, zoom_speed: F, screen: [F; 2]) -> ArcballCamera<F> {
         let mut cam = ArcballCamera {
+            center,
             translation: Matrix4::from_translation(Vector3::new(F::zero(), F::zero(), -F::one())),
             center_translation: Matrix4::from_translation(center).invert().unwrap(),
             rotation: Quaternion::new(F::one(), F::zero(), F::zero(), F::zero()),

@@ -10,7 +10,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
 use winit::{
     dpi::PhysicalSize,
-    event::{Event, WindowEvent},
+    event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
@@ -52,7 +52,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 .expect("failed to load obj file");
                 println!("Number of models: {}", models.len());
                 println!("Loading first model...");
-                app.load_model(&models[0]);
+                let mesh = &models[0].mesh;
+                app.load_model(&mut mesh.positions.clone(), &mesh.indices);
                 println!("Finished loading");
             }
         }
@@ -76,6 +77,18 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
             event: WindowEvent::CursorMoved { position, .. },
             ..
         } => app.on_cursor_moved(position),
+        Event::WindowEvent {
+            event: WindowEvent::KeyboardInput { input, .. },
+            ..
+        } => match input.virtual_keycode {
+            Some(VirtualKeyCode::Space) => {
+                app.reset_camera();
+            }
+            Some(VirtualKeyCode::R) => {
+                app.load_default_model();
+            }
+            _ => {}
+        },
         Event::RedrawRequested(_) => app.render(),
         Event::MainEventsCleared => {
             let mut reload_compute_shader = false;

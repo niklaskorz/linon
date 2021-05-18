@@ -405,22 +405,26 @@ impl Application {
         Ok(())
     }
 
-    pub fn load_model(&mut self, model: &tobj::Model) {
-        let mut vertices = model.mesh.positions.clone();
-        normalize_vertices(&mut vertices);
+    pub fn load_default_model(&mut self) {
+        let mut vertices = cbox::VERTICES;
+        self.load_model(&mut vertices, &cbox::INDICES);
+    }
+
+    pub fn load_model(&mut self, vertices: &mut [f32], indices: &[u32]) {
+        normalize_vertices(vertices);
 
         let vertices_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices_buffer"),
-                contents: bytemuck::cast_slice(&vertices),
+                contents: bytemuck::cast_slice(vertices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
         let faces_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
-                contents: bytemuck::cast_slice(&model.mesh.indices),
+                contents: bytemuck::cast_slice(indices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
 
@@ -439,12 +443,13 @@ impl Application {
             label: Some("mesh_bind_group"),
         });
 
-        let center = get_center(&vertices);
+        let center = get_center(vertices);
         self.camera = ArcballCamera::new(
             center,
             1.0,
             [self.sc_desc.width as f32, self.sc_desc.height as f32],
         );
+        self.camera.zoom(-1.0, 1.0);
         self.update_camera();
     }
 
@@ -452,6 +457,17 @@ impl Application {
         let uniform = CameraUniform::from(&self.camera);
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]))
+    }
+
+    pub fn reset_camera(&mut self) {
+        let center = self.camera.center;
+        self.camera = ArcballCamera::new(
+            center,
+            1.0,
+            [self.sc_desc.width as f32, self.sc_desc.height as f32],
+        );
+        self.camera.zoom(-1.0, 1.0);
+        self.update_camera();
     }
 
     pub fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
