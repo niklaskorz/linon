@@ -39,9 +39,10 @@ var<storage> faces: [[access(read)]] Faces;
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
-let object_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
-let use_lighting: bool = false;
+let linear_mode: bool = true;
+let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
 fn lorenz_delta(v: vec3<f32>) -> vec3<f32> {
@@ -173,7 +174,11 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let v = f32(gid.y) / (height - 1.0) *  viewport_height - 0.5 * viewport_height;
     let s = u * normalize(horizontal) + v * normalize(vertical) + focal_length * view_direction;
     let dir = normalize(s);
-    let color = nonlinear_ray_color(origin, dir);
-
-    textureStore(target, coords, color);
+    if (linear_mode) {
+        let color = ray_color(origin, dir, 100.0);
+        textureStore(target, coords, color);
+    } else {
+        let color = nonlinear_ray_color(origin, dir);
+        textureStore(target, coords, color);
+    }
 }
