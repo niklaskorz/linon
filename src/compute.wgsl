@@ -41,11 +41,11 @@ let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
-let linear_mode: bool = true;
+let linear_mode: bool = false;
 let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
-fn lorenz_delta(v: vec3<f32>) -> vec3<f32> {
+fn lorenz_attractor(v: vec3<f32>) -> vec3<f32> {
     let rho = 28.0;
     let sigma = 10.0;
     let beta = 8.0 / 3.0;
@@ -56,8 +56,8 @@ fn lorenz_delta(v: vec3<f32>) -> vec3<f32> {
     );
 }
 
-fn linear_delta(v: vec3<f32>) -> vec3<f32> {
-    return vec3<f32>(20.0, 10.0, 0.0);
+fn vector_fn(v: vec3<f32>) -> vec3<f32> {
+    return lorenz_attractor(v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
@@ -86,7 +86,7 @@ fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>)
     return -1.0;
 }
 
-fn ray_color(origin: vec3<f32>, direction: vec3<f32>, h: f32) -> vec4<f32> {
+fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32> {
     var t: f32 = -1.0;
     var t_new: f32;
     var d1: vec3<f32>;
@@ -102,13 +102,13 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, h: f32) -> vec4<f32> {
             vec3<f32>(c.x, c.y, c.z),
         );
         t_new = hit_triangle(triangle, origin, direction);
-        if (t_new > 0.0 && t_new < h && (t < 0.0 || t_new < t)) {
+        if (t_new > 0.0 && t_new < max_dist && (t < 0.0 || t_new < t)) {
             t = t_new;
             d1 = triangle[1] - triangle[0];
             d2 = triangle[2] - triangle[0];
         }
     }
-    if (t > 0.0 && t < h) {
+    if (t > 0.0 && t < max_dist) {
         let normal = normalize(cross(d1, d2));
         if (!use_lighting) {
             let color = abs(normal);
@@ -126,23 +126,27 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, h: f32) -> vec4<f32> {
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-fn nonlinear_ray_color(origin: vec3<f32>, direction: vec3<f32>) -> vec4<f32> {
-    let h = 0.05;
-    let max_dist = h * 100.0;
-    var cur_point: vec3<f32> = origin;
-    var cur_dir: vec3<f32> = direction;
-    loop {
-        if (length(origin - cur_point) > max_dist) {
-            break;
-        }
-        let color = ray_color(cur_point, cur_dir, h);
+fn nonlinear_ray_color(start: vec3<f32>) -> vec4<f32> {
+    let h = 10.0;
+    let steps = 100;
+    var cur_point: vec3<f32> = start;
+
+    for (var i: i32 = 0; i < steps; i = i + 1) {
+        // Runge-Kutta method
+        let k1 = vector_fn(cur_point);
+        let k2 = vector_fn(cur_point + 0.5 * h * k1);
+        let k3 = vector_fn(cur_point + 0.5 * h * k2);
+        let k4 = vector_fn(cur_point + h * k3);
+        let dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+
+        let color = ray_color(cur_point, normalize(dir), length(dir));
         if (color.a > 0.0) {
             return color;
         }
-        cur_point = cur_point + h * cur_dir;
-        let delta_dir = lorenz_delta(cur_point) / 1000.0;
-        cur_dir = normalize(cur_dir + delta_dir);
+
+        cur_point = cur_point + dir;
     }
+
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
@@ -178,7 +182,7 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         let color = ray_color(origin, dir, 100.0);
         textureStore(target, coords, color);
     } else {
-        let color = nonlinear_ray_color(origin, dir);
+        let color = nonlinear_ray_color(origin + dir);
         textureStore(target, coords, color);
     }
 }
