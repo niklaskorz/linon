@@ -42,22 +42,52 @@ let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
 let linear_mode: bool = false;
-let use_lighting: bool = true;
+let use_lighting: bool = false;
 let eps: f32 = 0.0000001;
 
-fn lorenz_attractor(v: vec3<f32>) -> vec3<f32> {
+fn lorenz_attractor(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
     let rho = 28.0;
     let sigma = 10.0;
     let beta = 8.0 / 3.0;
     return vec3<f32>(
-        sigma * (v.y - v.x),
-        v.x * (rho - v.z) - v.y,
-        v.x * v.y - beta * v.z,
+        sigma * (p.y - p.x),
+        p.x * (rho - p.z) - p.y,
+        p.x * p.y - beta * p.z,
     );
 }
 
-fn vector_fn(v: vec3<f32>) -> vec3<f32> {
-    return lorenz_attractor(v);
+fn roessler_attractor(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
+    let a = 0.1;
+    let b = 0.1;
+    let c = 14.0;
+    return vec3<f32>(
+        -p.y - p.z,
+        p.x + a * p.y,
+        b + p.z * (p.x - c),
+    );
+}
+
+fn gravity_attenuation(r: f32) -> f32 {
+    let R = 10.0;
+    let r2 = r * r;
+    let R2 = R * R;
+    let r3 = r2 * r;
+    let R3 = R2 * R;
+    if (0.0 <= r && r <= R) {
+        return 2.0 * r3 / R3 - 3.0 * r2 / R2 + 1.0;
+    }
+    return 0.0;
+}
+
+fn gravity_center(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
+    let G = 6.67430e-11;
+    let center_mass = 1.0e10;
+    let center_pos = vec3<f32>(0.0, 0.0, -1.0);
+    return v + G * center_mass * normalize(p - center_pos) * gravity_attenuation(length(p - center_pos));
+}
+
+fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
+    return gravity_center(p, v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
@@ -126,25 +156,26 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-fn nonlinear_ray_color(start: vec3<f32>) -> vec4<f32> {
+fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
     let h = 10.0;
     let steps = 100;
-    var cur_point: vec3<f32> = start;
+    var cur_point: vec3<f32> = start_point;
+    var cur_dir: vec3<f32> = start_dir;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
-        // Runge-Kutta method
-        let k1 = vector_fn(cur_point);
-        let k2 = vector_fn(cur_point + 0.5 * h * k1);
-        let k3 = vector_fn(cur_point + 0.5 * h * k2);
-        let k4 = vector_fn(cur_point + h * k3);
-        let dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+        cur_point = cur_point + cur_dir;
 
-        let color = ray_color(cur_point, normalize(dir), length(dir));
+        // Runge-Kutta method
+        let k1 = vector_fn(cur_point, cur_dir);
+        let k2 = vector_fn(cur_point + 0.5 * h * k1, 0.5 * h * k1);
+        let k3 = vector_fn(cur_point + 0.5 * h * k2, 0.5 * h * k2);
+        let k4 = vector_fn(cur_point + h * k3, h * k3);
+        cur_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+
+        let color = ray_color(cur_point, normalize(cur_dir), length(cur_dir));
         if (color.a > 0.0) {
             return color;
         }
-
-        cur_point = cur_point + dir;
     }
 
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
@@ -182,7 +213,7 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         let color = ray_color(origin, dir, 100.0);
         textureStore(target, coords, color);
     } else {
-        let color = nonlinear_ray_color(origin + dir);
+        let color = nonlinear_ray_color(origin, dir);
         textureStore(target, coords, color);
     }
 }
