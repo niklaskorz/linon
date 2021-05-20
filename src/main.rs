@@ -98,7 +98,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 }
             }
             if reload_compute_shader {
-                println!("Compute shader has changed: {:?}", event);
+                println!("Compute shader has changed");
                 let source =
                     fs::read_to_string("src/compute.wgsl").expect("reading compute shader failed");
                 if let Err(e) = app.reload_compute_shader(&source) {
