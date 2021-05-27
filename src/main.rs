@@ -1,10 +1,12 @@
 mod application;
 mod arcball;
 mod cornell_box;
+mod gui;
 mod texture;
 
 use anyhow::Result;
 use application::Application;
+use gui::GuiEvent;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
@@ -23,8 +25,8 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
     Ok(watcher)
 }
 
-async fn run(event_loop: EventLoop<()>, window: Window) {
-    let mut app = Application::new(&window)
+async fn run(event_loop: EventLoop<GuiEvent>, window: Window) {
+    let mut app = Application::new(&window, &event_loop)
         .await
         .expect("creation of application failed");
 
@@ -34,80 +36,88 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         println!("Hot reloading disabled, watcher creation failed: {:?}", e);
     }
 
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            event: WindowEvent::DroppedFile(path),
-            ..
-        } => {
-            println!("File dropped: {:?}", path);
-            if path.extension().and_then(OsStr::to_str) == Some("obj") {
-                println!("Loading object...");
-                let (models, _) = tobj::load_obj(
-                    &path,
-                    &tobj::LoadOptions {
-                        triangulate: true,
-                        ..Default::default()
-                    },
-                )
-                .expect("failed to load obj file");
-                println!("Number of models: {}", models.len());
-                println!("Loading first model...");
-                let mesh = &models[0].mesh;
-                app.load_model(&mut mesh.positions.clone(), &mesh.indices);
-                println!("Finished loading");
-            }
+    event_loop.run(move |event, _, control_flow| {
+        app.gui.handle_event(&event);
+        if app.gui.captures_event(&event) {
+            return;
         }
-        Event::WindowEvent {
-            event: WindowEvent::Resized(size),
-            ..
-        } => app.resize(size.width, size.height),
-        Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } => *control_flow = ControlFlow::Exit,
-        Event::WindowEvent {
-            event: WindowEvent::MouseWheel { delta, .. },
-            ..
-        } => app.on_mouse_wheel(delta),
-        Event::WindowEvent {
-            event: WindowEvent::MouseInput { state, button, .. },
-            ..
-        } => app.on_mouse_input(state, button),
-        Event::WindowEvent {
-            event: WindowEvent::CursorMoved { position, .. },
-            ..
-        } => app.on_cursor_moved(position),
-        Event::WindowEvent {
-            event: WindowEvent::KeyboardInput { input, .. },
-            ..
-        } => match input.virtual_keycode {
-            Some(VirtualKeyCode::Space) => {
-                app.reset_camera();
+
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::DroppedFile(path),
+                ..
+            } => {
+                println!("File dropped: {:?}", path);
+                if path.extension().and_then(OsStr::to_str) == Some("obj") {
+                    println!("Loading object...");
+                    let (models, _) = tobj::load_obj(
+                        &path,
+                        &tobj::LoadOptions {
+                            triangulate: true,
+                            ..Default::default()
+                        },
+                    )
+                    .expect("failed to load obj file");
+                    println!("Number of models: {}", models.len());
+                    println!("Loading first model...");
+                    let mesh = &models[0].mesh;
+                    app.load_model(&mut mesh.positions.clone(), &mesh.indices);
+                    println!("Finished loading");
+                }
             }
-            Some(VirtualKeyCode::R) => {
-                app.load_default_model();
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => app.resize(size.width, size.height),
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::MouseWheel { delta, .. },
+                ..
+            } => app.on_mouse_wheel(delta),
+            Event::WindowEvent {
+                event: WindowEvent::MouseInput { state, button, .. },
+                ..
+            } => app.on_mouse_input(state, button),
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                ..
+            } => app.on_cursor_moved(position),
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput { input, .. },
+                ..
+            } => match input.virtual_keycode {
+                Some(VirtualKeyCode::Space) => {
+                    app.reset_camera();
+                }
+                Some(VirtualKeyCode::R) => {
+                    app.load_default_model();
+                }
+                _ => {}
+            },
+            Event::RedrawRequested(_) => app.render(window.scale_factor() as f32),
+            Event::UserEvent(GuiEvent::RequestRedraw) => window.request_redraw(),
+            Event::MainEventsCleared => {
+                let mut reload_compute_shader = false;
+                for result in rx.try_iter() {
+                    if let Ok(_event) = result {
+                        reload_compute_shader = true;
+                    }
+                }
+                if reload_compute_shader {
+                    println!("Compute shader has changed");
+                    let source = fs::read_to_string("src/compute.wgsl")
+                        .expect("reading compute shader failed");
+                    if let Err(e) = app.reload_compute_shader(&source) {
+                        println!("Shader reload failed: {:?}", e);
+                    }
+                }
+                window.request_redraw()
             }
             _ => {}
-        },
-        Event::RedrawRequested(_) => app.render(),
-        Event::MainEventsCleared => {
-            let mut reload_compute_shader = false;
-            for result in rx.try_iter() {
-                if let Ok(_event) = result {
-                    reload_compute_shader = true;
-                }
-            }
-            if reload_compute_shader {
-                println!("Compute shader has changed");
-                let source =
-                    fs::read_to_string("src/compute.wgsl").expect("reading compute shader failed");
-                if let Err(e) = app.reload_compute_shader(&source) {
-                    println!("Shader reload failed: {:?}", e);
-                }
-            }
-            window.request_redraw()
         }
-        _ => {}
     });
 }
 
@@ -120,7 +130,7 @@ fn main() -> Result<()> {
         console_log::init().expect("could not initialize logger");
     }
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::with_user_event();
     let window = WindowBuilder::new()
         .with_title("linon")
         .with_inner_size(PhysicalSize {

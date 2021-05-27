@@ -1,10 +1,13 @@
 use crate::arcball::ArcballCamera;
 use crate::cornell_box as cbox;
+use crate::gui::Gui;
+use crate::gui::GuiEvent;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::{Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
+use winit::event_loop::EventLoop;
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, MouseButton, MouseScrollDelta},
@@ -80,10 +83,12 @@ pub struct Application {
 
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
+
+    pub gui: Gui,
 }
 
 impl Application {
-    pub async fn new(window: &Window) -> Result<Self> {
+    pub async fn new(window: &Window, event_loop: &EventLoop<GuiEvent>) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(window) };
@@ -310,6 +315,14 @@ impl Application {
             multisample: wgpu::MultisampleState::default(),
         });
 
+        let gui = Gui::new(
+            size,
+            window.scale_factor(),
+            &device,
+            swapchain_format,
+            event_loop,
+        );
+
         Ok(Self {
             _instance: instance,
             surface,
@@ -337,6 +350,8 @@ impl Application {
 
             mesh_bind_group_layout,
             mesh_bind_group,
+
+            gui,
         })
     }
 
@@ -520,7 +535,7 @@ impl Application {
         self.prev_cursor_pos = Some(pos);
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, scale_factor: f32) {
         let frame = self
             .swap_chain
             .get_current_frame()
@@ -569,6 +584,15 @@ impl Application {
         encoder.pop_debug_group();
 
         self.queue.submit(Some(encoder.finish()));
+
+        self.gui.draw(
+            &frame.view,
+            self.sc_desc.width,
+            self.sc_desc.height,
+            scale_factor,
+            &self.device,
+            &self.queue,
+        );
     }
 }
 

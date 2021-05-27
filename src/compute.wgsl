@@ -41,8 +41,8 @@ let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
-let linear_mode: bool = false;
-let use_lighting: bool = false;
+let linear_mode: bool = true;
+let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
 fn lorenz_attractor(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
@@ -87,7 +87,7 @@ fn gravity_center(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
 }
 
 fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    return gravity_center(p, v);
+    return lorenz_attractor(p, v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
