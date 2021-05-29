@@ -6,7 +6,6 @@ mod texture;
 
 use anyhow::Result;
 use application::Application;
-use gui::GuiEvent;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
@@ -25,8 +24,8 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
     Ok(watcher)
 }
 
-async fn run(event_loop: EventLoop<GuiEvent>, window: Window) {
-    let mut app = Application::new(&window, &event_loop)
+async fn run(event_loop: EventLoop<()>, window: Window) {
+    let mut app = Application::new(&window)
         .await
         .expect("creation of application failed");
 
@@ -37,6 +36,8 @@ async fn run(event_loop: EventLoop<GuiEvent>, window: Window) {
     }
 
     event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
         app.gui.handle_event(&event);
         if app.gui.captures_event(&event) {
             return;
@@ -98,7 +99,6 @@ async fn run(event_loop: EventLoop<GuiEvent>, window: Window) {
                 _ => {}
             },
             Event::RedrawRequested(_) => app.render(window.scale_factor() as f32),
-            Event::UserEvent(GuiEvent::RequestRedraw) => window.request_redraw(),
             Event::MainEventsCleared => {
                 let mut reload_compute_shader = false;
                 for result in rx.try_iter() {
@@ -130,7 +130,7 @@ fn main() -> Result<()> {
         console_log::init().expect("could not initialize logger");
     }
 
-    let event_loop = EventLoop::with_user_event();
+    let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("linon")
         .with_inner_size(PhysicalSize {

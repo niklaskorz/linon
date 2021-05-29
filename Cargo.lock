@@ -1167,7 +1167,6 @@ dependencies = [
  "egui_wgpu_backend",
  "egui_winit_platform",
  "env_logger",
- "epi",
  "futures",
  "image",
  "log",

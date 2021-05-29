@@ -1,13 +1,11 @@
 use crate::arcball::ArcballCamera;
 use crate::cornell_box as cbox;
 use crate::gui::Gui;
-use crate::gui::GuiEvent;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::{Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
-use winit::event_loop::EventLoop;
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, MouseButton, MouseScrollDelta},
@@ -88,7 +86,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn new(window: &Window, event_loop: &EventLoop<GuiEvent>) -> Result<Self> {
+    pub async fn new(window: &Window) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(window) };
@@ -315,13 +313,7 @@ impl Application {
             multisample: wgpu::MultisampleState::default(),
         });
 
-        let gui = Gui::new(
-            size,
-            window.scale_factor(),
-            &device,
-            swapchain_format,
-            event_loop,
-        );
+        let gui = Gui::new(size, window.scale_factor(), &device, swapchain_format);
 
         Ok(Self {
             _instance: instance,
