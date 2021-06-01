@@ -3,6 +3,8 @@ use crate::cornell_box as cbox;
 use crate::gui::Gui;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
+use cgmath::Matrix4;
+use cgmath::SquareMatrix;
 use cgmath::{Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
@@ -25,6 +27,7 @@ struct CameraUniform {
     origin: [f32; 4],
     view_direction: [f32; 4],
     up: [f32; 4],
+    view_matrix: [[f32; 4]; 4],
 }
 
 #[repr(C)]
@@ -42,7 +45,7 @@ struct Faces {
 }
 
 impl CameraUniform {
-    fn from(camera: &ArcballCamera<f32>) -> CameraUniform {
+    fn moving(camera: &ArcballCamera<f32>) -> CameraUniform {
         let eye_pos = camera.eye_pos();
         let eye_dir = camera.eye_dir();
         let up_dir = camera.up_dir();
@@ -50,6 +53,16 @@ impl CameraUniform {
             origin: [eye_pos.x, eye_pos.y, eye_pos.z, 0.0],
             view_direction: [eye_dir.x, eye_dir.y, eye_dir.z, 0.0],
             up: [up_dir.x, up_dir.y, up_dir.z, 0.0],
+            view_matrix: Matrix4::identity().into(),
+        }
+    }
+
+    fn stationary(camera: &ArcballCamera<f32>) -> CameraUniform {
+        CameraUniform {
+            origin: [0.0, 0.0, 0.0, 0.0],
+            view_direction: [0.0, 0.0, -1.0, 0.0],
+            up: [0.0, 1.0, 0.0, 0.0],
+            view_matrix: camera.get_mat4().into(),
         }
     }
 }
@@ -151,7 +164,7 @@ impl Application {
         let mut camera = ArcballCamera::new(center, 1.0, [size.width as f32, size.height as f32]);
         camera.zoom(-1.0, 1.0);
 
-        let uniform = CameraUniform::from(&camera);
+        let uniform = CameraUniform::stationary(&camera);
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("uniform_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
@@ -461,7 +474,7 @@ impl Application {
     }
 
     fn update_camera(&mut self) {
-        let uniform = CameraUniform::from(&self.camera);
+        let uniform = CameraUniform::stationary(&self.camera);
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]))
     }

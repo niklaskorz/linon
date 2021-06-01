@@ -71,16 +71,6 @@ impl Gui {
                     if ui
                         .selectable_value(
                             predefined_function,
-                            PredefinedFunction::Translate,
-                            PredefinedFunction::Translate.to_string(),
-                        )
-                        .clicked()
-                    {
-                        *field_function = PredefinedFunction::Translate.to_code();
-                    }
-                    if ui
-                        .selectable_value(
-                            predefined_function,
                             PredefinedFunction::LorenzAttractor,
                             PredefinedFunction::LorenzAttractor.to_string(),
                         )

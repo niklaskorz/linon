@@ -6,6 +6,7 @@ struct Camera {
     origin: vec4<f32>;
     view_direction: vec4<f32>;
     up: vec4<f32>;
+    view_matrix: mat4x4<f32>;
 };
 [[group(0), binding(1)]]
 var<uniform> camera: Camera;
@@ -87,7 +88,7 @@ fn gravity_center(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
 }
 
 fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let weight = 0.01;
+    let weight = 0.0;
     return (1.0 - weight) * v + weight * lorenz_attractor(p, v);
 }
 
@@ -128,9 +129,9 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
         let b = vertices.data[face.b];
         let c = vertices.data[face.c];
         let triangle = array<vec3<f32>, 3>(
-            vec3<f32>(a.x, a.y, a.z),
-            vec3<f32>(b.x, b.y, b.z),
-            vec3<f32>(c.x, c.y, c.z),
+            (camera.view_matrix * vec4<f32>(a.x, a.y, a.z, 1.0)).xyz,
+            (camera.view_matrix * vec4<f32>(b.x, b.y, b.z, 1.0)).xyz,
+            (camera.view_matrix * vec4<f32>(c.x, c.y, c.z, 1.0)).xyz,
         );
         t_new = hit_triangle(triangle, origin, direction);
         if (t_new > 0.0 && t_new < max_dist && (t < 0.0 || t_new < t)) {

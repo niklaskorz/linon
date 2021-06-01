@@ -37,6 +37,10 @@ impl<F: BaseFloat> ArcballCamera<F> {
         cam.update_camera();
         cam
     }
+    /// Get the view matrix computed by the camera.
+    pub fn get_mat4(&self) -> Matrix4<F> {
+        self.camera
+    }
     /// Get the camera eye position
     pub fn eye_pos(&self) -> Vector3<F> {
         Vector3::new(
