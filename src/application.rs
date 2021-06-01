@@ -99,6 +99,7 @@ pub struct Application {
     camera_op: CameraOperation,
     settings_buffer: wgpu::Buffer,
     prev_cursor_pos: Option<PhysicalPosition<f64>>,
+    needs_redraw: bool,
 
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
@@ -389,6 +390,7 @@ impl Application {
             camera_op: CameraOperation::None,
             settings_buffer,
             prev_cursor_pos: None,
+            needs_redraw: true,
 
             mesh_bind_group_layout,
             mesh_bind_group,
@@ -430,6 +432,7 @@ impl Application {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
         self.camera.update_screen(width as f32, height as f32);
         self.update_camera();
+        self.needs_redraw = true;
     }
 
     pub fn reload_compute_shader(&mut self, new_src: Option<&str>) -> Result<(), wgpu::Error> {
@@ -470,6 +473,7 @@ impl Application {
         }
         self._compute_shader = compute_shader;
         self.compute_pipeline = compute_pipeline;
+        self.needs_redraw = true;
 
         Ok(())
     }
@@ -520,6 +524,7 @@ impl Application {
         );
         self.camera.zoom(-1.0, 1.0);
         self.update_camera();
+        self.needs_redraw = true;
     }
 
     fn update_camera(&mut self) {
@@ -529,7 +534,8 @@ impl Application {
             CameraUniform::moving(&self.camera)
         };
         self.queue
-            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[uniform]))
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[uniform]));
+        self.needs_redraw = true;
     }
 
     fn update_settings(&mut self) {
@@ -538,6 +544,7 @@ impl Application {
         };
         self.queue
             .write_buffer(&self.settings_buffer, 0, bytemuck::cast_slice(&[settings]));
+        self.needs_redraw = true;
     }
 
     pub fn reset_camera(&mut self) {
@@ -613,21 +620,24 @@ impl Application {
                 label: Some("encoder"),
             });
 
-        encoder.push_debug_group("compute");
-        {
-            let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("cpass"),
-            });
-            cpass.set_pipeline(&self.compute_pipeline);
-            cpass.set_bind_group(0, &self.compute_bind_group, &[]);
-            cpass.set_bind_group(1, &self.mesh_bind_group, &[]);
-            cpass.dispatch(
-                (self.sc_desc.width + 7) / 8,
-                (self.sc_desc.height + 7) / 8,
-                1,
-            );
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            encoder.push_debug_group("compute");
+            {
+                let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("cpass"),
+                });
+                cpass.set_pipeline(&self.compute_pipeline);
+                cpass.set_bind_group(0, &self.compute_bind_group, &[]);
+                cpass.set_bind_group(1, &self.mesh_bind_group, &[]);
+                cpass.dispatch(
+                    (self.sc_desc.width + 7) / 8,
+                    (self.sc_desc.height + 7) / 8,
+                    1,
+                );
+            }
+            encoder.pop_debug_group();
         }
-        encoder.pop_debug_group();
 
         encoder.push_debug_group("display");
         {

@@ -37,8 +37,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     }
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
         app.gui.handle_event(&event);
         if app.gui.captures_event(&event) {
             return;
