@@ -1,6 +1,7 @@
 mod application;
 mod arcball;
 mod cornell_box;
+mod functions;
 mod gui;
 mod texture;
 

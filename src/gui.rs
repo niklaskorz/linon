@@ -1,17 +1,21 @@
 use std::time::Instant;
 
-use egui::{FontDefinitions, Layout};
+use egui::FontDefinitions;
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use wgpu::TextureView;
 use winit::{dpi::PhysicalSize, event::Event};
+
+use crate::functions::PredefinedFunction;
 
 pub struct Gui {
     platform: Platform,
     rpass: RenderPass,
     start_time: Instant,
     previous_frame_time: Option<f32>,
-    label: String,
+    field_strength: f32,
+    predefined_function: PredefinedFunction,
+    field_function: String,
 }
 
 impl Gui {
@@ -35,7 +39,9 @@ impl Gui {
             rpass,
             start_time: Instant::now(),
             previous_frame_time: None,
-            label: String::new(),
+            field_strength: 0.05,
+            predefined_function: PredefinedFunction::LorenzAttractor,
+            field_function: PredefinedFunction::LorenzAttractor.to_code(),
         }
     }
 
@@ -48,18 +54,58 @@ impl Gui {
     }
 
     fn show(&mut self, ctx: &egui::CtxRef) {
-        let Self { label, .. } = self;
-        egui::Window::new("Settings")
-            .default_size((200.0, 100.0))
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Write something: ");
-                    ui.text_edit_singleline(label);
-                });
-                ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
-                    ui.hyperlink_to("linon", "https://github.com/niklaskorz/linon");
-                });
+        let Self {
+            field_strength,
+            predefined_function,
+            field_function,
+            ..
+        } = self;
+        egui::Window::new("Settings").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Field strength:");
+                ui.add(egui::Slider::new(field_strength, 0.0..=1.0));
             });
+            egui::ComboBox::from_label("Predefined function")
+                .selected_text(predefined_function.to_string())
+                .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::Translate,
+                            PredefinedFunction::Translate.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::Translate.to_code();
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::LorenzAttractor,
+                            PredefinedFunction::LorenzAttractor.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::LorenzAttractor.to_code();
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::RoesslerAttractor,
+                            PredefinedFunction::RoesslerAttractor.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::RoesslerAttractor.to_code();
+                    }
+                });
+            ui.vertical(|ui| {
+                ui.label("Custom function:");
+                if ui.code_editor(field_function).changed() {
+                    *predefined_function = PredefinedFunction::Custom;
+                }
+            });
+        });
     }
 
     pub fn draw(
