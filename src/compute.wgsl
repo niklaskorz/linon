@@ -41,7 +41,7 @@ let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
-let linear_mode: bool = true;
+let linear_mode: bool = false;
 let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
@@ -87,7 +87,8 @@ fn gravity_center(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
 }
 
 fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    return lorenz_attractor(p, v);
+    let weight = 0.01;
+    return (1.0 - weight) * v + weight * lorenz_attractor(p, v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
@@ -163,8 +164,6 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
     var cur_dir: vec3<f32> = start_dir;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
-        cur_point = cur_point + cur_dir;
-
         // Runge-Kutta method
         let k1 = vector_fn(cur_point, cur_dir);
         let k2 = vector_fn(cur_point + 0.5 * h * k1, 0.5 * h * k1);
@@ -176,6 +175,8 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
         if (color.a > 0.0) {
             return color;
         }
+
+        cur_point = cur_point + cur_dir;
     }
 
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
