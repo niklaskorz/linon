@@ -31,6 +31,12 @@ struct CameraUniform {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Settings {
+    field_weight: f32,
+}
+
+#[repr(C)]
 #[derive(Debug, Clone)]
 struct Vertices {
     length: u32,
@@ -75,6 +81,7 @@ pub struct Application {
     queue: wgpu::Queue,
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
+    compute_shader_src: String,
     _compute_shader: wgpu::ShaderModule,
     _display_shader: wgpu::ShaderModule,
     texture: Texture,
@@ -87,9 +94,10 @@ pub struct Application {
     _render_pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
 
-    uniform_buffer: wgpu::Buffer,
+    camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
     camera_op: CameraOperation,
+    settings_buffer: wgpu::Buffer,
     prev_cursor_pos: Option<PhysicalPosition<f64>>,
 
     mesh_bind_group_layout: wgpu::BindGroupLayout,
@@ -133,6 +141,8 @@ impl Application {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        let gui = Gui::new(size, window.scale_factor(), &device, swapchain_format);
+
         #[cfg(not(target_arch = "wasm32"))]
         let flags = wgpu::ShaderFlags::all();
         #[cfg(target_arch = "wasm32")]
@@ -146,9 +156,13 @@ impl Application {
         }
         normalize_vertices(&mut vertices);
 
+        let compute_shader_src = include_str!("compute.wgsl");
         let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("compute.wgsl"))),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&with_field_function(
+                compute_shader_src,
+                &gui.field_function,
+            ))),
             flags,
         });
 
@@ -164,10 +178,19 @@ impl Application {
         let mut camera = ArcballCamera::new(center, 1.0, [size.width as f32, size.height as f32]);
         camera.zoom(-1.0, 1.0);
 
-        let uniform = CameraUniform::stationary(&camera);
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("uniform_buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
+        let camera_uniform = CameraUniform::moving(&camera);
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("camera_buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let settings = Settings {
+            field_weight: gui.field_weight,
+        };
+        let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("settings_buffer"),
+            contents: bytemuck::cast_slice(&[settings]),
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
@@ -206,6 +229,16 @@ impl Application {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("compute_bind_group_layout"),
             });
@@ -218,7 +251,11 @@ impl Application {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: uniform_buffer.as_entire_binding(),
+                    resource: camera_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: settings_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
@@ -326,8 +363,6 @@ impl Application {
             multisample: wgpu::MultisampleState::default(),
         });
 
-        let gui = Gui::new(size, window.scale_factor(), &device, swapchain_format);
-
         Ok(Self {
             _instance: instance,
             surface,
@@ -336,6 +371,7 @@ impl Application {
             queue,
             sc_desc,
             swap_chain,
+            compute_shader_src: compute_shader_src.to_string(),
             _compute_shader: compute_shader,
             _display_shader: display_shader,
             texture,
@@ -348,9 +384,10 @@ impl Application {
             _render_pipeline_layout: render_pipeline_layout,
             render_pipeline,
 
-            uniform_buffer,
+            camera_buffer,
             camera,
             camera_op: CameraOperation::None,
+            settings_buffer,
             prev_cursor_pos: None,
 
             mesh_bind_group_layout,
@@ -371,7 +408,11 @@ impl Application {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: self.uniform_buffer.as_entire_binding(),
+                    resource: self.camera_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.settings_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
@@ -391,7 +432,12 @@ impl Application {
         self.update_camera();
     }
 
-    pub fn reload_compute_shader(&mut self, source: &str) -> Result<(), wgpu::Error> {
+    pub fn reload_compute_shader(&mut self, new_src: Option<&str>) -> Result<(), wgpu::Error> {
+        let src = with_field_function(
+            new_src.unwrap_or(&self.compute_shader_src),
+            &self.gui.field_function,
+        );
+
         let (tx, rx) = channel::<wgpu::Error>();
         self.device.on_uncaptured_error(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
@@ -401,7 +447,7 @@ impl Application {
             .device
             .create_shader_module(&wgpu::ShaderModuleDescriptor {
                 label: Some("compute_shader"),
-                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&src)),
                 flags: wgpu::ShaderFlags::all(),
             });
         let compute_pipeline =
@@ -419,6 +465,9 @@ impl Application {
             return Err(err);
         }
 
+        if let Some(new_src) = new_src {
+            self.compute_shader_src = new_src.to_string();
+        }
         self._compute_shader = compute_shader;
         self.compute_pipeline = compute_pipeline;
 
@@ -474,9 +523,21 @@ impl Application {
     }
 
     fn update_camera(&mut self) {
-        let uniform = CameraUniform::stationary(&self.camera);
+        let uniform = if self.gui.rotate_scene {
+            CameraUniform::stationary(&self.camera)
+        } else {
+            CameraUniform::moving(&self.camera)
+        };
         self.queue
-            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]))
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[uniform]))
+    }
+
+    fn update_settings(&mut self) {
+        let settings = Settings {
+            field_weight: self.gui.field_weight,
+        };
+        self.queue
+            .write_buffer(&self.settings_buffer, 0, bytemuck::cast_slice(&[settings]));
     }
 
     pub fn reset_camera(&mut self) {
@@ -598,6 +659,23 @@ impl Application {
             &self.device,
             &self.queue,
         );
+
+        if self.gui.rotate_scene_changed {
+            self.gui.rotate_scene_changed = false;
+            self.update_camera();
+        }
+        if self.gui.field_weight_changed {
+            self.gui.field_weight_changed = false;
+            self.update_settings();
+        }
+        if self.gui.field_function_changed {
+            self.gui.field_function_changed = false;
+            if let Err(e) = self.reload_compute_shader(None) {
+                self.gui.shader_error = Some(e.to_string());
+            } else {
+                self.gui.shader_error = None;
+            }
+        }
     }
 }
 
@@ -655,4 +733,11 @@ fn get_center(vertices: &[f32]) -> Vector3<f32> {
         (min_y + max_y) / 2.0,
         (min_z + max_z) / 2.0,
     )
+}
+
+fn with_field_function(shader_src: &str, field_function: &str) -> String {
+    return format!(
+        "fn field_function(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {{\n{}\n}}\n{}",
+        field_function, shader_src,
+    );
 }

@@ -14,14 +14,16 @@ pub struct Gui {
     start_time: Instant,
     previous_frame_time: Option<f32>,
 
-    rotate_scene: bool,
-    field_weight: f32,
-    predefined_function: PredefinedFunction,
-    field_function: String,
+    pub shader_error: Option<String>,
 
-    rotate_scene_changed: bool,
-    field_weight_changed: bool,
-    field_function_changed: bool,
+    pub rotate_scene: bool,
+    pub field_weight: f32,
+    pub predefined_function: PredefinedFunction,
+    pub field_function: String,
+
+    pub rotate_scene_changed: bool,
+    pub field_weight_changed: bool,
+    pub field_function_changed: bool,
 }
 
 impl Gui {
@@ -46,7 +48,9 @@ impl Gui {
             start_time: Instant::now(),
             previous_frame_time: None,
 
-            rotate_scene: true,
+            shader_error: None,
+
+            rotate_scene: false,
             field_weight: 0.05,
             predefined_function: PredefinedFunction::LorenzAttractor,
             field_function: PredefinedFunction::LorenzAttractor.to_code(),
@@ -67,6 +71,8 @@ impl Gui {
 
     fn show(&mut self, ctx: &egui::CtxRef) {
         let Self {
+            shader_error,
+
             rotate_scene,
             field_weight,
             predefined_function,
@@ -86,7 +92,7 @@ impl Gui {
             }
             ui.horizontal(|ui| {
                 ui.label("Field weight:");
-                if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
+                if ui.add(egui::Slider::new(field_weight, 0.0..=0.1)).changed() {
                     *field_weight_changed = true;
                 }
             });
@@ -118,9 +124,12 @@ impl Gui {
                 });
             ui.vertical(|ui| {
                 ui.label("Custom function:");
-                if ui.code_editor(field_function).changed() {
+                if ui.code_editor(field_function).lost_focus() {
                     *predefined_function = PredefinedFunction::Custom;
                     *field_function_changed = true;
+                }
+                if let Some(shader_error) = shader_error {
+                    ui.label(format!("Shader error: {}", shader_error));
                 }
             });
         });

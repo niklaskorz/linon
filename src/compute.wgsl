@@ -11,6 +11,13 @@ struct Camera {
 [[group(0), binding(1)]]
 var<uniform> camera: Camera;
 
+[[block]]
+struct Settings {
+    field_weight: f32;
+};
+[[group(0), binding(2)]]
+var<uniform> settings: Settings;
+
 struct Vertex {
     x: f32;
     y: f32;
@@ -46,50 +53,8 @@ let linear_mode: bool = false;
 let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
-fn lorenz_attractor(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let rho = 28.0;
-    let sigma = 10.0;
-    let beta = 8.0 / 3.0;
-    return vec3<f32>(
-        sigma * (p.y - p.x),
-        p.x * (rho - p.z) - p.y,
-        p.x * p.y - beta * p.z,
-    );
-}
-
-fn roessler_attractor(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let a = 0.1;
-    let b = 0.1;
-    let c = 14.0;
-    return vec3<f32>(
-        -p.y - p.z,
-        p.x + a * p.y,
-        b + p.z * (p.x - c),
-    );
-}
-
-fn gravity_attenuation(r: f32) -> f32 {
-    let R = 10.0;
-    let r2 = r * r;
-    let R2 = R * R;
-    let r3 = r2 * r;
-    let R3 = R2 * R;
-    if (0.0 <= r && r <= R) {
-        return 2.0 * r3 / R3 - 3.0 * r2 / R2 + 1.0;
-    }
-    return 0.0;
-}
-
-fn gravity_center(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let G = 6.67430e-11;
-    let center_mass = 1.0e10;
-    let center_pos = vec3<f32>(0.0, 0.0, -1.0);
-    return v + G * center_mass * normalize(p - center_pos) * gravity_attenuation(length(p - center_pos));
-}
-
 fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let weight = 0.0;
-    return (1.0 - weight) * v + weight * lorenz_attractor(p, v);
+    return (1.0 - settings.field_weight) * v + settings.field_weight * field_function(p, v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
