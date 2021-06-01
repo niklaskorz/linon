@@ -13,9 +13,15 @@ pub struct Gui {
     rpass: RenderPass,
     start_time: Instant,
     previous_frame_time: Option<f32>,
-    field_strength: f32,
+
+    rotate_scene: bool,
+    field_weight: f32,
     predefined_function: PredefinedFunction,
     field_function: String,
+
+    rotate_scene_changed: bool,
+    field_weight_changed: bool,
+    field_function_changed: bool,
 }
 
 impl Gui {
@@ -39,9 +45,15 @@ impl Gui {
             rpass,
             start_time: Instant::now(),
             previous_frame_time: None,
-            field_strength: 0.05,
+
+            rotate_scene: true,
+            field_weight: 0.05,
             predefined_function: PredefinedFunction::LorenzAttractor,
             field_function: PredefinedFunction::LorenzAttractor.to_code(),
+
+            rotate_scene_changed: false,
+            field_weight_changed: false,
+            field_function_changed: false,
         }
     }
 
@@ -55,15 +67,28 @@ impl Gui {
 
     fn show(&mut self, ctx: &egui::CtxRef) {
         let Self {
-            field_strength,
+            rotate_scene,
+            field_weight,
             predefined_function,
             field_function,
+
+            rotate_scene_changed,
+            field_weight_changed,
+            field_function_changed,
             ..
         } = self;
         egui::Window::new("Settings").show(ctx, |ui| {
+            if ui
+                .checkbox(rotate_scene, "Rotate scene instead of camera")
+                .changed()
+            {
+                *rotate_scene_changed = true;
+            }
             ui.horizontal(|ui| {
-                ui.label("Field strength:");
-                ui.add(egui::Slider::new(field_strength, 0.0..=1.0));
+                ui.label("Field weight:");
+                if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
+                    *field_weight_changed = true;
+                }
             });
             egui::ComboBox::from_label("Predefined function")
                 .selected_text(predefined_function.to_string())
@@ -77,6 +102,7 @@ impl Gui {
                         .clicked()
                     {
                         *field_function = PredefinedFunction::LorenzAttractor.to_code();
+                        *field_function_changed = true;
                     }
                     if ui
                         .selectable_value(
@@ -87,12 +113,14 @@ impl Gui {
                         .clicked()
                     {
                         *field_function = PredefinedFunction::RoesslerAttractor.to_code();
+                        *field_function_changed = true;
                     }
                 });
             ui.vertical(|ui| {
                 ui.label("Custom function:");
                 if ui.code_editor(field_function).changed() {
                     *predefined_function = PredefinedFunction::Custom;
+                    *field_function_changed = true;
                 }
             });
         });
