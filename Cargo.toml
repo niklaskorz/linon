@@ -17,6 +17,7 @@ anyhow = "1.0"
 notify = "5.0.0-pre.9"
 tobj = "3.0"
 egui = "0.12"
+egui_winit_platform = "0.8"
 
 [dependencies.wgpu]
 git = "https://github.com/gfx-rs/wgpu-rs"
@@ -24,11 +25,7 @@ rev = "7486bdad64bb5d17b709ecccb41e063469efff88"
 
 [dependencies.egui_wgpu_backend]
 git = "https://github.com/niklaskorz/egui_wgpu_backend"
-rev = "0fda4e328bbdc83b5cf45ab967eaf5421436f9af"
-
-[dependencies.egui_winit_platform]
-git = "https://github.com/hasenbanck/egui_winit_platform"
-rev = "9fd92782d8de22d7882168d7b5ae7a2eb02448d9"
+rev = "d77e31acfc551d6028dbfefb3c50ed21ec2b620e"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.8"
