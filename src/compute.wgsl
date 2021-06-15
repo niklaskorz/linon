@@ -56,6 +56,15 @@ let linear_mode: bool = false;
 let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
+fn rotate(phi: f32) -> mat4x4<f32> {
+    return mat4x4<f32>(
+        vec4<f32>(cos(phi), sin(phi), 0.0, 0.0),
+        vec4<f32>(-sin(phi), cos(phi), 0.0, 0.0),
+        vec4<f32>(0.0, 0.0, 1.0, 0.0),
+        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+    );
+}
+
 fn field_function(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> { return v; }
 
 fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
@@ -143,14 +152,14 @@ fn draw_reference_point(p: vec3<f32>, color: vec4<f32>) {
 }
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
-    let h = 10.0;
+    let h = 0.5;
     let steps = 100;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
-        //draw_reference_point(cur_point);
+        draw_reference_point(cur_point, vec4<f32>(1.0, 1.0, 1.0, 1.0));
 
         // Runge-Kutta method
         let k1 = vector_fn(cur_point, cur_dir);
@@ -169,6 +178,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
         }
 
         cur_point = cur_point + cur_dir;
+        cur_dir = normalize(k4);
     }
 
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);

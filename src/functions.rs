@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum PredefinedFunction {
     Custom,
+    Rotation,
     LorenzAttractor,
     RoesslerAttractor,
 }
@@ -9,6 +10,7 @@ impl ToString for PredefinedFunction {
     fn to_string(&self) -> String {
         match self {
             Self::Custom => "Custom".to_string(),
+            Self::Rotation => "Rotation".to_string(),
             Self::LorenzAttractor => "Lorenz attractor".to_string(),
             Self::RoesslerAttractor => "Roessler attractor".to_string(),
         }
@@ -19,6 +21,11 @@ impl PredefinedFunction {
     pub fn to_code(&self) -> String {
         match self {
             Self::Custom => "".to_string(),
+            Self::Rotation => "let phi = 1.5;
+let A = rotate(phi);
+let u = A * vec4<f32>(v, 1.0);
+return u.xyz;"
+                .to_string(),
             Self::LorenzAttractor => "let rho = 28.0;
 let sigma = 10.0;
 let beta = 8.0 / 3.0;
