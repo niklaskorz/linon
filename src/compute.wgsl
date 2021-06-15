@@ -53,6 +53,8 @@ let linear_mode: bool = false;
 let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
+fn field_function(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> { return v; }
+
 fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
     return (1.0 - settings.field_weight) * v + settings.field_weight * field_function(p, v);
 }
