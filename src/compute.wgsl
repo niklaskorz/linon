@@ -129,16 +129,16 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
 }
 
 fn reference_point(point: vec3<f32>, dim: vec2<i32>) -> vec2<i32> {
-    let x = round((point.x + 1.0) * f32(dim.x));
-    let y = round((point.z + 1.0) * f32(dim.y));
+    let x = round(((point.x + 1.0) / 1.05 + 0.01) * f32(dim.x));
+    let y = round(((point.z + 1.0) / 1.05 + 0.01) * f32(dim.y));
     return vec2<i32>(i32(x), i32(y));
 }
 
-fn draw_reference_point(p: vec3<f32>) {
+fn draw_reference_point(p: vec3<f32>, color: vec4<f32>) {
     let reference_dim = textureDimensions(reference_view);
     let ref_point = reference_point(p, reference_dim);
-    if (ref_point.x < reference_dim.x && ref_point.y < reference_dim.y && abs(p.y) < 0.9) {
-        textureStore(reference_view, ref_point, vec4<f32>(1.0, 1.0, 1.0, 1.0));
+    if (ref_point.x < reference_dim.x && ref_point.y < reference_dim.y && p.y > 0.2 && p.y < 0.8) {
+        textureStore(reference_view, ref_point, color);
     }
 }
 
@@ -150,7 +150,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
     var color: vec4<f32>;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
-        draw_reference_point(cur_point);
+        //draw_reference_point(cur_point);
 
         // Runge-Kutta method
         let k1 = vector_fn(cur_point, cur_dir);
@@ -164,7 +164,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
         if (color.a > 0.0) {
             cur_point = cur_point + color.a * unit_dir;
             color.a = 1.0;
-            draw_reference_point(cur_point);
+            draw_reference_point(cur_point, color);
             return color;
         }
 
@@ -176,13 +176,14 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
 
 [[stage(compute), workgroup_size(8, 8)]]
 fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
-    let size = textureDimensions(target);
-    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y));
     let reference_dim = textureDimensions(reference_view);
+    var coords: vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
     if (coords.x < reference_dim.x && coords.y < reference_dim.y) {
         textureStore(reference_view, coords, vec4<f32>(0.0, 0.0, 0.0, 1.0));
     }
-    if (coords.x >= size.x || coords.y >= size.y) {
+    let size = textureDimensions(target);
+    coords.y = size.y - coords.y;
+    if (coords.x >= size.x || coords.y < 0) {
         return;
     }
 
