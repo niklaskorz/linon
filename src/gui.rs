@@ -1,12 +1,14 @@
 use std::time::Instant;
 
 use egui::FontDefinitions;
-use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
+use egui_wgpu_backend::{epi::TextureAllocator, RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use wgpu::TextureView;
 use winit::{dpi::PhysicalSize, event::Event};
 
-use crate::functions::PredefinedFunction;
+use crate::{arcball::CameraOperation, functions::PredefinedFunction};
+
+pub const INITIAL_SIDEBAR_WIDTH: f32 = 200.0;
 
 pub struct Gui {
     platform: Platform,
@@ -24,6 +26,13 @@ pub struct Gui {
     pub rotate_scene_changed: bool,
     pub field_weight_changed: bool,
     pub field_function_changed: bool,
+
+    pub texture_id: egui::TextureId,
+    pub reference_view_texture_id: egui::TextureId,
+
+    pub cursor_pos: Option<(f32, f32)>,
+    pub scroll_delta: egui::Vec2,
+    pub camera_op: CameraOperation,
 }
 
 impl Gui {
@@ -32,6 +41,8 @@ impl Gui {
         scale_factor: f64,
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
+        texture: &wgpu::Texture,
+        reference_view_texture: &wgpu::Texture,
     ) -> Self {
         let platform = Platform::new(PlatformDescriptor {
             physical_width: size.width,
@@ -40,7 +51,15 @@ impl Gui {
             font_definitions: FontDefinitions::default(),
             style: Default::default(),
         });
-        let rpass = RenderPass::new(device, output_format, 1);
+        let mut rpass = RenderPass::new(device, output_format, 1);
+
+        let texture_id =
+            rpass.egui_texture_from_wgpu_texture(device, texture, wgpu::FilterMode::Linear);
+        let reference_view_texture_id = rpass.egui_texture_from_wgpu_texture(
+            device,
+            reference_view_texture,
+            wgpu::FilterMode::Linear,
+        );
 
         Self {
             platform,
@@ -58,6 +77,13 @@ impl Gui {
             rotate_scene_changed: false,
             field_weight_changed: false,
             field_function_changed: false,
+
+            texture_id,
+            reference_view_texture_id,
+
+            cursor_pos: None,
+            scroll_delta: egui::Vec2::new(0.0, 0.0),
+            camera_op: CameraOperation::None,
         }
     }
 
@@ -69,7 +95,15 @@ impl Gui {
         self.platform.captures_event(winit_event)
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef) {
+    pub fn change_texture(&mut self, device: &wgpu::Device, texture: &wgpu::Texture) {
+        let texture_id =
+            self.rpass
+                .egui_texture_from_wgpu_texture(device, texture, wgpu::FilterMode::Linear);
+        self.rpass.free(self.texture_id);
+        self.texture_id = texture_id;
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef) -> egui::Vec2 {
         let Self {
             shader_error,
 
@@ -81,9 +115,15 @@ impl Gui {
             rotate_scene_changed,
             field_weight_changed,
             field_function_changed,
+
+            cursor_pos,
+            scroll_delta,
+            camera_op,
             ..
         } = self;
-        egui::Window::new("Settings").show(ctx, |ui| {
+        let texture_id = self.texture_id;
+        let reference_view_texture_id = self.reference_view_texture_id;
+        egui::SidePanel::left("Settings", INITIAL_SIDEBAR_WIDTH).show(ctx, |ui| {
             if ui
                 .checkbox(rotate_scene, "Rotate scene instead of camera")
                 .changed()
@@ -132,7 +172,28 @@ impl Gui {
                     ui.label(format!("Shader error: {}", shader_error));
                 }
             });
+            ui.image(reference_view_texture_id, (200.0, 200.0));
         });
+        egui::CentralPanel::default()
+            .show(ctx, |ui| {
+                let resp = ui.image(texture_id, ui.available_size());
+                if let Some(pos) = resp.hover_pos() {
+                    *cursor_pos = Some((pos.x - resp.rect.left(), pos.y - resp.rect.top()));
+                } else {
+                    *cursor_pos = None
+                }
+                let input = ui.input();
+                *camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
+                    CameraOperation::Rotate
+                } else if input.pointer.button_down(egui::PointerButton::Secondary) {
+                    CameraOperation::Pan
+                } else {
+                    CameraOperation::None
+                };
+                *scroll_delta = ui.input().scroll_delta;
+                resp.rect.size()
+            })
+            .inner
     }
 
     pub fn draw(
@@ -143,7 +204,7 @@ impl Gui {
         scale_factor: f32,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-    ) {
+    ) -> (u32, u32) {
         self.platform
             .update_time(self.start_time.elapsed().as_secs_f64());
 
@@ -152,7 +213,7 @@ impl Gui {
         self.platform.begin_frame();
 
         // Show UI
-        self.show(&self.platform.context());
+        let size = self.show(&self.platform.context());
 
         // End frame
         let (_, paint_commands) = self.platform.end_frame();
@@ -185,5 +246,7 @@ impl Gui {
         );
 
         queue.submit(Some(encoder.finish()));
+
+        (size.x as u32, size.y as u32)
     }
 }

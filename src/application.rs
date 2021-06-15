@@ -1,6 +1,7 @@
-use crate::arcball::ArcballCamera;
+use crate::arcball::{ArcballCamera, CameraOperation};
 use crate::cornell_box as cbox;
 use crate::gui::Gui;
+use crate::gui::INITIAL_SIDEBAR_WIDTH;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::Matrix4;
@@ -8,18 +9,7 @@ use cgmath::SquareMatrix;
 use cgmath::{Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
-use winit::{
-    dpi::PhysicalPosition,
-    event::{ElementState, MouseButton, MouseScrollDelta},
-    window::Window,
-};
-
-#[derive(Debug, Copy, Clone)]
-enum CameraOperation {
-    None,
-    Rotate,
-    Pan,
-}
+use winit::window::Window;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -83,22 +73,17 @@ pub struct Application {
     swap_chain: wgpu::SwapChain,
     compute_shader_src: String,
     _compute_shader: wgpu::ShaderModule,
-    _display_shader: wgpu::ShaderModule,
     texture: Texture,
+    reference_view_texture: Texture,
     compute_bind_group_layout: wgpu::BindGroupLayout,
     compute_bind_group: wgpu::BindGroup,
     compute_pipeline_layout: wgpu::PipelineLayout,
     compute_pipeline: wgpu::ComputePipeline,
-    render_bind_group_layout: wgpu::BindGroupLayout,
-    render_bind_group: wgpu::BindGroup,
-    _render_pipeline_layout: wgpu::PipelineLayout,
-    render_pipeline: wgpu::RenderPipeline,
 
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
-    camera_op: CameraOperation,
     settings_buffer: wgpu::Buffer,
-    prev_cursor_pos: Option<PhysicalPosition<f64>>,
+    prev_cursor_pos: Option<(f32, f32)>,
     needs_redraw: bool,
 
     mesh_bind_group_layout: wgpu::BindGroupLayout,
@@ -142,7 +127,21 @@ impl Application {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let gui = Gui::new(size, window.scale_factor(), &device, swapchain_format);
+        let texture = Texture::new(
+            &device,
+            (size.width - INITIAL_SIDEBAR_WIDTH as u32, size.height),
+            Some("texture"),
+        );
+        let reference_view_texture = Texture::new(&device, (200, 200), Some("reference_texture"));
+
+        let gui = Gui::new(
+            size,
+            window.scale_factor(),
+            &device,
+            swapchain_format,
+            &texture.texture,
+            &reference_view_texture.texture,
+        );
 
         #[cfg(not(target_arch = "wasm32"))]
         let flags = wgpu::ShaderFlags::all();
@@ -166,14 +165,6 @@ impl Application {
             ))),
             flags,
         });
-
-        let display_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: Some("display_shader"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("display.wgsl"))),
-            flags,
-        });
-
-        let texture = Texture::new(&device, (size.width, size.height), Some("texture"));
 
         let center = get_center(&vertices);
         let mut camera = ArcballCamera::new(center, 1.0, [size.width as f32, size.height as f32]);
@@ -223,6 +214,16 @@ impl Application {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: reference_view_texture.format,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -231,7 +232,7 @@ impl Application {
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
-                        binding: 2,
+                        binding: 3,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
@@ -252,10 +253,14 @@ impl Application {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: camera_buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::TextureView(&reference_view_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
+                    resource: camera_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: settings_buffer.as_entire_binding(),
                 },
             ],
@@ -314,56 +319,6 @@ impl Application {
             entry_point: "main",
         });
 
-        let render_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("render_bind_group_layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::ReadOnly,
-                        format: texture.format,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                    },
-                    count: None,
-                }],
-            });
-        let render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("render_bind_group"),
-            layout: &render_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture.view),
-            }],
-        });
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("render_pipeline_layout"),
-                bind_group_layouts: &[&render_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("render_pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &display_shader,
-                entry_point: "vs_main",
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &display_shader,
-                entry_point: "fs_main",
-                targets: &[swapchain_format.into()],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-        });
-
         Ok(Self {
             _instance: instance,
             surface,
@@ -374,20 +329,15 @@ impl Application {
             swap_chain,
             compute_shader_src: compute_shader_src.to_string(),
             _compute_shader: compute_shader,
-            _display_shader: display_shader,
             texture,
+            reference_view_texture,
             compute_bind_group_layout,
             compute_bind_group,
             compute_pipeline_layout,
             compute_pipeline,
-            render_bind_group_layout,
-            render_bind_group,
-            _render_pipeline_layout: render_pipeline_layout,
-            render_pipeline,
 
             camera_buffer,
             camera,
-            camera_op: CameraOperation::None,
             settings_buffer,
             prev_cursor_pos: None,
             needs_redraw: true,
@@ -399,7 +349,7 @@ impl Application {
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
+    fn resize_texture(&mut self, width: u32, height: u32) {
         self.texture = Texture::new(&self.device, (width, height), Some("texture"));
         self.compute_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.compute_bind_group_layout,
@@ -410,29 +360,29 @@ impl Application {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: self.camera_buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::TextureView(&self.reference_view_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
+                    resource: self.camera_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: self.settings_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
         });
-        self.render_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("texture_bind_group"),
-            layout: &self.render_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&self.texture.view),
-            }],
-        });
+        self.camera.update_screen(width as f32, height as f32);
+        self.update_camera();
+        self.gui.change_texture(&self.device, &self.texture.texture);
+        self.needs_redraw = true;
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
         self.sc_desc.width = width;
         self.sc_desc.height = height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-        self.camera.update_screen(width as f32, height as f32);
-        self.update_camera();
-        self.needs_redraw = true;
     }
 
     pub fn reload_compute_shader(&mut self, new_src: Option<&str>) -> Result<(), wgpu::Error> {
@@ -558,48 +508,29 @@ impl Application {
         self.update_camera();
     }
 
-    pub fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
-        let y = match delta {
-            MouseScrollDelta::LineDelta(_, y) => y,
-            MouseScrollDelta::PixelDelta(p) => p.y as f32,
-        };
-        self.camera.zoom(y, 1.0 / 60.0);
+    pub fn on_mouse_wheel(&mut self, delta: f32) {
+        self.camera.zoom(delta, 1.0 / 60.0);
         self.update_camera();
     }
 
-    pub fn on_mouse_input(&mut self, state: ElementState, button: MouseButton) {
-        self.camera_op = match state {
-            ElementState::Pressed => match button {
-                MouseButton::Left => CameraOperation::Rotate,
-                MouseButton::Right => CameraOperation::Pan,
-                _ => self.camera_op,
-            },
-            ElementState::Released => match (button, self.camera_op) {
-                (MouseButton::Left, CameraOperation::Rotate) => CameraOperation::None,
-                (MouseButton::Right, CameraOperation::Pan) => CameraOperation::None,
-                _ => self.camera_op,
-            },
-        };
-    }
-
-    pub fn on_cursor_moved(&mut self, pos: PhysicalPosition<f64>) {
+    pub fn on_cursor_moved(&mut self, pos: (f32, f32)) {
         if self.prev_cursor_pos.is_none() {
             self.prev_cursor_pos = Some(pos);
             return;
         }
         let prev = self.prev_cursor_pos.unwrap();
-        match self.camera_op {
+        match self.gui.camera_op {
             CameraOperation::Rotate => {
                 self.camera.rotate(
-                    Vector2::new(prev.x as f32, prev.y as f32),
-                    Vector2::new(pos.x as f32, pos.y as f32),
+                    Vector2::new(prev.0 as f32, prev.1 as f32),
+                    Vector2::new(pos.0 as f32, pos.1 as f32),
                 );
                 self.update_camera();
             }
             CameraOperation::Pan => {
                 self.camera.pan(Vector2::new(
-                    (pos.x - prev.x) as f32,
-                    (pos.y - prev.y) as f32,
+                    (pos.0 - prev.0) as f32,
+                    (pos.1 - prev.1) as f32,
                 ));
                 self.update_camera();
             }
@@ -609,18 +540,12 @@ impl Application {
     }
 
     pub fn render(&mut self, scale_factor: f32) {
-        let frame = self
-            .swap_chain
-            .get_current_frame()
-            .expect("failed to acquire next swap chain texture")
-            .output;
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("encoder"),
-            });
-
         if self.needs_redraw {
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("encoder"),
+                });
             self.needs_redraw = false;
             encoder.push_debug_group("compute");
             {
@@ -637,31 +562,16 @@ impl Application {
                 );
             }
             encoder.pop_debug_group();
+            self.queue.submit(Some(encoder.finish()));
         }
 
-        encoder.push_debug_group("display");
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("rpass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
-                    view: &frame.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
-                    },
-                }],
-                depth_stencil_attachment: None,
-            });
-            rpass.set_pipeline(&self.render_pipeline);
-            rpass.set_bind_group(0, &self.render_bind_group, &[]);
-            rpass.draw(0..6, 0..1)
-        }
-        encoder.pop_debug_group();
+        let frame = self
+            .swap_chain
+            .get_current_frame()
+            .expect("failed to acquire next swap chain texture")
+            .output;
 
-        self.queue.submit(Some(encoder.finish()));
-
-        self.gui.draw(
+        let dimensions = self.gui.draw(
             &frame.view,
             self.sc_desc.width,
             self.sc_desc.height,
@@ -669,6 +579,16 @@ impl Application {
             &self.device,
             &self.queue,
         );
+        if self.texture.dimensions != dimensions {
+            self.resize_texture(dimensions.0, dimensions.1)
+        }
+
+        if let Some(pos) = self.gui.cursor_pos {
+            self.on_cursor_moved(pos);
+        }
+        if self.gui.scroll_delta.y != 0.0 {
+            self.on_mouse_wheel(self.gui.scroll_delta.y);
+        }
 
         if self.gui.rotate_scene_changed {
             self.gui.rotate_scene_changed = false;

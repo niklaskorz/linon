@@ -74,18 +74,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 ..
             } => *control_flow = ControlFlow::Exit,
             Event::WindowEvent {
-                event: WindowEvent::MouseWheel { delta, .. },
-                ..
-            } => app.on_mouse_wheel(delta),
-            Event::WindowEvent {
-                event: WindowEvent::MouseInput { state, button, .. },
-                ..
-            } => app.on_mouse_input(state, button),
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                ..
-            } => app.on_cursor_moved(position),
-            Event::WindowEvent {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => match input.virtual_keycode {

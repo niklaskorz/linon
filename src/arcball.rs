@@ -8,6 +8,13 @@ use cgmath::num_traits::clamp;
 use cgmath::prelude::*;
 use cgmath::{BaseFloat, Matrix4, Quaternion, Vector2, Vector3, Vector4};
 
+#[derive(Debug, Copy, Clone)]
+pub enum CameraOperation {
+    None,
+    Rotate,
+    Pan,
+}
+
 /// The Shoemake Arcball camera.
 pub struct ArcballCamera<F> {
     pub center: Vector3<F>,

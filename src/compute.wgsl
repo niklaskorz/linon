@@ -1,6 +1,9 @@
 [[group(0), binding(0)]]
 var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
 
+[[group(0), binding(1)]]
+var reference_view: [[access(write)]] texture_storage_2d<rgba8unorm>;
+
 [[block]]
 struct Camera {
     origin: vec4<f32>;
@@ -8,14 +11,14 @@ struct Camera {
     up: vec4<f32>;
     view_matrix: mat4x4<f32>;
 };
-[[group(0), binding(1)]]
+[[group(0), binding(2)]]
 var<uniform> camera: Camera;
 
 [[block]]
 struct Settings {
     field_weight: f32;
 };
-[[group(0), binding(2)]]
+[[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
 struct Vertex {
@@ -120,9 +123,23 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
         let spec = pow(max(dot(normal, -direction), 0.0), shininess);
         let specular = spec * light_color;
         let result = (ambient + diffuse + specular) * object_color;
-        return vec4<f32>(result, 1.0);
+        return vec4<f32>(result, t);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+}
+
+fn reference_point(point: vec3<f32>, dim: vec2<i32>) -> vec2<i32> {
+    let x = round((point.x + 1.0) * f32(dim.x));
+    let y = round((point.z + 1.0) * f32(dim.y));
+    return vec2<i32>(i32(x), i32(y));
+}
+
+fn draw_reference_point(p: vec3<f32>) {
+    let reference_dim = textureDimensions(reference_view);
+    let ref_point = reference_point(p, reference_dim);
+    if (ref_point.x < reference_dim.x && ref_point.y < reference_dim.y && abs(p.y) < 0.9) {
+        textureStore(reference_view, ref_point, vec4<f32>(1.0, 1.0, 1.0, 1.0));
+    }
 }
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
@@ -130,8 +147,11 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
     let steps = 100;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
+    var color: vec4<f32>;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
+        draw_reference_point(cur_point);
+
         // Runge-Kutta method
         let k1 = vector_fn(cur_point, cur_dir);
         let k2 = vector_fn(cur_point + 0.5 * h * k1, 0.5 * h * k1);
@@ -139,21 +159,29 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
         let k4 = vector_fn(cur_point + h * k3, h * k3);
         cur_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
 
-        let color = ray_color(cur_point, normalize(cur_dir), length(cur_dir));
+        let unit_dir = normalize(cur_dir);
+        color = ray_color(cur_point, unit_dir, length(cur_dir));
         if (color.a > 0.0) {
+            cur_point = cur_point + color.a * unit_dir;
+            color.a = 1.0;
+            draw_reference_point(cur_point);
             return color;
         }
 
         cur_point = cur_point + cur_dir;
     }
 
-    return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
 
 [[stage(compute), workgroup_size(8, 8)]]
 fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
-    let coords = vec2<i32>(i32(gid.x), i32(gid.y));
     let size = textureDimensions(target);
+    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y));
+    let reference_dim = textureDimensions(reference_view);
+    if (coords.x < reference_dim.x && coords.y < reference_dim.y) {
+        textureStore(reference_view, coords, vec4<f32>(0.0, 0.0, 0.0, 1.0));
+    }
     if (coords.x >= size.x || coords.y >= size.y) {
         return;
     }

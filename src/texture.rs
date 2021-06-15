@@ -2,6 +2,7 @@ pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub format: wgpu::TextureFormat,
+    pub dimensions: (u32, u32),
 }
 
 impl Texture {
@@ -30,6 +31,7 @@ impl Texture {
             texture,
             view,
             format,
+            dimensions,
         }
     }
 }
