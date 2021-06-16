@@ -47,6 +47,8 @@ struct Faces {
 [[group(1), binding(1)]]
 var<storage> faces: [[access(read)]] Faces;
 
+let backface_culling: bool = false;
+
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
@@ -97,11 +99,12 @@ fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
+    // Möller-Trumbore intersection algorithm
     let edge1 = v[1] - v[0];
     let edge2 = v[2] - v[0];
     let h = cross(direction, edge2);
     let a = dot(edge1, h);
-    if (a > -eps && a < eps) {
+    if ((backface_culling || a > -eps) && a < eps) {
         return -1.0;
     }
     let f = 1.0 / a;
@@ -151,12 +154,14 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
             return vec4<f32>(color, 1.0);
         }
         let ambient = ambient_strength * light_color;
-        let light_dir = -direction; // camera is the light source for now
-        let diff = max(dot(normal, light_dir), 0.0);
+        // The camera is the light source here, which allows for
+        // some simplifications
+        let intensity = max(dot(normal, -direction), 0.0);
+        let diff = intensity;
         let diffuse = diff * light_color;
-        let spec = pow(max(dot(normal, -direction), 0.0), shininess);
+        let spec = pow(intensity, shininess);
         let specular = spec * light_color;
-        let result = (ambient + diffuse + specular) * object_color;
+        let result = (ambient + diffuse + specular) * abs(normal);
         return vec4<f32>(result, t);
     }
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
