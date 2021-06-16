@@ -132,7 +132,11 @@ impl Application {
             (size.width - INITIAL_SIDEBAR_WIDTH as u32, size.height),
             Some("texture"),
         );
-        let reference_view_texture = Texture::new(&device, (200, 200), Some("reference_texture"));
+        let reference_view_texture = Texture::new(
+            &device,
+            (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32),
+            Some("reference_texture"),
+        );
 
         let gui = Gui::new(
             size,

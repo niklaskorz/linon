@@ -56,12 +56,37 @@ let linear_mode: bool = false;
 let use_lighting: bool = true;
 let eps: f32 = 0.0000001;
 
-fn rotate(phi: f32) -> mat4x4<f32> {
-    return mat4x4<f32>(
-        vec4<f32>(cos(phi), sin(phi), 0.0, 0.0),
-        vec4<f32>(-sin(phi), cos(phi), 0.0, 0.0),
-        vec4<f32>(0.0, 0.0, 1.0, 0.0),
-        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+let PI: f32 = 3.141592653589793;
+
+fn rotateX(v: vec3<f32>, phi: f32) -> vec3<f32> {
+    return mat3x3<f32>(
+        vec3<f32>(1.0, 0.0, 0.0),
+        vec3<f32>(0.0, cos(phi), sin(phi)),
+        vec3<f32>(0.0, -sin(phi), cos(phi)),
+    ) * v;
+}
+
+fn rotateY(v: vec3<f32>, phi: f32) -> vec3<f32> {
+    return mat3x3<f32>(
+        vec3<f32>(cos(phi), 0.0, -sin(phi)),
+        vec3<f32>(0.0, 1.0, 0.0),
+        vec3<f32>(sin(phi), 0.0, cos(phi)),
+    ) * v;
+}
+
+fn rotateZ(v: vec3<f32>, phi: f32) -> vec3<f32> {
+    return mat3x3<f32>(
+        vec3<f32>(cos(phi), sin(phi), 0.0),
+        vec3<f32>(-sin(phi), cos(phi), 0.0),
+        vec3<f32>(0.0, 0.0, 0.0),
+    ) * v;
+}
+
+fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
+    return vec3<f32>(
+        v.x + dx,
+        v.y + dy,
+        v.z + dz,
     );
 }
 
@@ -138,8 +163,8 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
 }
 
 fn reference_point(point: vec3<f32>, dim: vec2<i32>) -> vec2<i32> {
-    let x = round(((point.x + 1.0) / 1.05 + 0.01) * f32(dim.x));
-    let y = round(((point.z + 1.0) / 1.05 + 0.01) * f32(dim.y));
+    let x = round(((point.x + 1.0) / 2.0 + 0.25) * f32(dim.x));
+    let y = round(((point.z + 1.0) / 2.0 + 0.25) * f32(dim.y));
     return vec2<i32>(i32(x), i32(y));
 }
 
@@ -152,14 +177,16 @@ fn draw_reference_point(p: vec3<f32>, color: vec4<f32>) {
 }
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
-    let h = 0.5;
+    let h = 0.25;
     let steps = 100;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
-        draw_reference_point(cur_point, vec4<f32>(1.0, 1.0, 1.0, 1.0));
+        if (i % 2 == 0) {
+            draw_reference_point(cur_point, vec4<f32>(1.0, 1.0, 1.0, 1.0));
+        }
 
         // Runge-Kutta method
         let k1 = vector_fn(cur_point, cur_dir);

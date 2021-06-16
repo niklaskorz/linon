@@ -8,7 +8,7 @@ use winit::{dpi::PhysicalSize, event::Event};
 
 use crate::{arcball::CameraOperation, functions::PredefinedFunction};
 
-pub const INITIAL_SIDEBAR_WIDTH: f32 = 200.0;
+pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
 
 pub struct Gui {
     platform: Platform,
@@ -70,9 +70,9 @@ impl Gui {
             shader_error: None,
 
             rotate_scene: false,
-            field_weight: 0.05,
-            predefined_function: PredefinedFunction::Rotation,
-            field_function: PredefinedFunction::Rotation.to_code(),
+            field_weight: 0.001,
+            predefined_function: PredefinedFunction::TranslationX,
+            field_function: PredefinedFunction::TranslationX.to_code(),
 
             rotate_scene_changed: false,
             field_weight_changed: false,
@@ -142,6 +142,28 @@ impl Gui {
                     if ui
                         .selectable_value(
                             predefined_function,
+                            PredefinedFunction::TranslationX,
+                            PredefinedFunction::TranslationX.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::TranslationX.to_code();
+                        *field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::TranslationZ,
+                            PredefinedFunction::TranslationZ.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::TranslationZ.to_code();
+                        *field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
                             PredefinedFunction::Rotation,
                             PredefinedFunction::Rotation.to_string(),
                         )
@@ -183,7 +205,10 @@ impl Gui {
                     ui.label(format!("Shader error: {}", shader_error));
                 }
             });
-            ui.image(reference_view_texture_id, (200.0, 200.0));
+            ui.image(
+                reference_view_texture_id,
+                (INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH),
+            );
         });
         egui::CentralPanel::default()
             .show(ctx, |ui| {
