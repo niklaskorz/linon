@@ -18,14 +18,11 @@ notify = "5.0.0-pre.9"
 tobj = "3.0"
 egui = "0.12"
 egui_winit_platform = "0.8"
-
-[dependencies.wgpu]
-git = "https://github.com/gfx-rs/wgpu-rs"
-rev = "7486bdad64bb5d17b709ecccb41e063469efff88"
+wgpu = "0.9"
 
 [dependencies.egui_wgpu_backend]
-git = "https://github.com/niklaskorz/egui_wgpu_backend"
-rev = "d77e31acfc551d6028dbfefb3c50ed21ec2b620e"
+git = "https://github.com/LPGhatguy/egui_wgpu_backend"
+rev = "3f2c504bacb12576734bf5c67194dc08209ac491"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.8"
