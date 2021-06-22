@@ -3,6 +3,7 @@ mod arcball;
 mod cornell_box;
 mod functions;
 mod gui;
+mod reference_view;
 mod texture;
 
 use anyhow::Result;

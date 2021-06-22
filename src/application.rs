@@ -2,6 +2,7 @@ use crate::arcball::{ArcballCamera, CameraOperation};
 use crate::cornell_box as cbox;
 use crate::gui::Gui;
 use crate::gui::INITIAL_SIDEBAR_WIDTH;
+use crate::reference_view::ReferenceView;
 use crate::texture::Texture;
 use anyhow::{Context, Result};
 use cgmath::Matrix4;
@@ -74,7 +75,7 @@ pub struct Application {
     compute_shader_src: String,
     _compute_shader: wgpu::ShaderModule,
     texture: Texture,
-    reference_view_texture: Texture,
+    reference_view: ReferenceView,
     compute_bind_group_layout: wgpu::BindGroupLayout,
     compute_bind_group: wgpu::BindGroup,
     compute_pipeline_layout: wgpu::PipelineLayout,
@@ -132,11 +133,8 @@ impl Application {
             (size.width - INITIAL_SIDEBAR_WIDTH as u32, size.height),
             Some("texture"),
         );
-        let reference_view_texture = Texture::new(
-            &device,
-            (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32),
-            Some("reference_texture"),
-        );
+
+        let reference_view = ReferenceView::new(&device);
 
         let gui = Gui::new(
             size,
@@ -144,13 +142,8 @@ impl Application {
             &device,
             swapchain_format,
             &texture.texture,
-            &reference_view_texture.texture,
+            &reference_view.texture.texture,
         );
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let flags = wgpu::ShaderFlags::all();
-        #[cfg(target_arch = "wasm32")]
-        let flags = wgpu::ShaderFlags::VALIDATION;
 
         let mut vertices = cbox::VERTICES;
         for i in 0..(vertices.len() / 3) {
@@ -167,7 +160,10 @@ impl Application {
                 compute_shader_src,
                 &gui.field_function,
             ))),
-            flags,
+            #[cfg(not(target_arch = "wasm32"))]
+            flags: wgpu::ShaderFlags::all(),
+            #[cfg(target_arch = "wasm32")]
+            flags: wgpu::ShaderFlags::VALIDATION,
         });
 
         let center = get_center(&vertices);
@@ -216,16 +212,6 @@ impl Application {
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStage::COMPUTE,
-                        ty: wgpu::BindingType::StorageTexture {
-                            access: wgpu::StorageTextureAccess::WriteOnly,
-                            format: reference_view_texture.format,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
                         binding: 2,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
@@ -254,10 +240,6 @@ impl Application {
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::TextureView(&texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&reference_view_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
@@ -334,7 +316,7 @@ impl Application {
             compute_shader_src: compute_shader_src.to_string(),
             _compute_shader: compute_shader,
             texture,
-            reference_view_texture,
+            reference_view,
             compute_bind_group_layout,
             compute_bind_group,
             compute_pipeline_layout,
@@ -361,10 +343,6 @@ impl Application {
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::TextureView(&self.texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&self.reference_view_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
@@ -565,6 +543,9 @@ impl Application {
                     1,
                 );
             }
+            encoder.pop_debug_group();
+            encoder.push_debug_group("render reference view");
+            self.reference_view.render(&mut encoder);
             encoder.pop_debug_group();
             self.queue.submit(Some(encoder.finish()));
         }
