@@ -4,7 +4,7 @@ use crate::{gui::INITIAL_SIDEBAR_WIDTH, texture::Texture};
 
 pub struct ReferenceView {
     pub texture: Texture,
-    render_pipeline_layout: wgpu::PipelineLayout,
+    _render_pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
 }
 
@@ -59,7 +59,7 @@ impl ReferenceView {
 
         Self {
             texture,
-            render_pipeline_layout,
+            _render_pipeline_layout: render_pipeline_layout,
             render_pipeline,
         }
     }

@@ -16,8 +16,8 @@ struct Settings {
 
 pub struct MainView {
     pub texture: Texture,
-    compute_shader_src: String,
-    _compute_shader: wgpu::ShaderModule,
+    shader_src: String,
+    _shader: wgpu::ShaderModule,
     compute_bind_group_layout: wgpu::BindGroupLayout,
     compute_bind_group: wgpu::BindGroup,
     compute_pipeline_layout: wgpu::PipelineLayout,
@@ -181,13 +181,21 @@ impl MainView {
 
         Self {
             texture,
-            render_pipeline_layout,
-            render_pipeline,
+            shader_src: shader_src.to_string(),
+            _shader: shader,
+            compute_bind_group_layout,
+            compute_bind_group,
+            compute_pipeline_layout,
+            compute_pipeline,
+            mesh_bind_group_layout,
+            mesh_bind_group,
+            settings_buffer,
 
             camera_buffer,
             camera,
             prev_cursor_pos: None,
             needs_redraw: true,
+            rotate_scene: false,
         }
     }
 
@@ -281,7 +289,13 @@ impl MainView {
         self.needs_redraw = true;
     }
 
-    pub fn resize_texture(&mut self, device: &wgpu::Device, width: u32, height: u32) {
+    pub fn resize_texture(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+    ) {
         self.texture = Texture::new(&device, (width, height), Some("texture"));
         self.compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.compute_bind_group_layout,
@@ -302,17 +316,17 @@ impl MainView {
             label: Some("compute_bind_group"),
         });
         self.camera.update_screen(width as f32, height as f32);
-        self.update_camera();
+        self.update_camera(queue);
         self.needs_redraw = true;
     }
 
-    pub fn reload_compute_shader(
+    pub fn reload_shader(
         &mut self,
         device: &wgpu::Device,
         new_src: Option<&str>,
         field_function: String,
     ) -> Result<(), wgpu::Error> {
-        let src = with_field_function(new_src.unwrap_or(&self.compute_shader_src), &field_function);
+        let src = with_field_function(new_src.unwrap_or(&self.shader_src), &field_function);
 
         let (tx, rx) = channel::<wgpu::Error>();
         device.on_uncaptured_error(move |e: wgpu::Error| {
@@ -338,9 +352,9 @@ impl MainView {
         }
 
         if let Some(new_src) = new_src {
-            self.compute_shader_src = new_src.to_string();
+            self.shader_src = new_src.to_string();
         }
-        self._compute_shader = compute_shader;
+        self._shader = compute_shader;
         self.compute_pipeline = compute_pipeline;
         self.needs_redraw = true;
 

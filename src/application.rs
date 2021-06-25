@@ -160,6 +160,15 @@ impl Application {
         );
     }
 
+    pub fn reset_camera(&mut self) {
+        self.main_view.reset_camera(&self.queue);
+    }
+
+    pub fn reload_compute_shader(&mut self, new_src: &str) -> Result<(), wgpu::Error> {
+        self.main_view
+            .reload_shader(&self.device, Some(new_src), self.gui.field_function.clone())
+    }
+
     pub fn render(&mut self, scale_factor: f32) {
         if self.main_view.needs_redraw {
             let mut encoder = self
@@ -192,7 +201,7 @@ impl Application {
         );
         if self.main_view.texture.dimensions != dimensions {
             self.main_view
-                .resize_texture(&self.device, dimensions.0, dimensions.1);
+                .resize_texture(&self.device, &self.queue, dimensions.0, dimensions.1);
             self.gui
                 .change_texture(&self.device, &self.main_view.texture.texture);
         }
@@ -220,7 +229,7 @@ impl Application {
             self.gui.field_function_changed = false;
             if let Err(e) =
                 self.main_view
-                    .reload_compute_shader(&self.device, None, self.gui.field_function)
+                    .reload_shader(&self.device, None, self.gui.field_function.clone())
             {
                 self.gui.shader_error = Some(e.to_string());
             } else {
