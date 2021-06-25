@@ -8,21 +8,18 @@ edition = "2018"
 
 [dependencies]
 image = "0.23"
-winit = { version = "0.25", features = ["web-sys"] }
+winit = { version="0.25", features=["web-sys"] }
 cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
-bytemuck = { version = "1.5", features = ["derive"] }
+bytemuck = { version="1.5", features=["derive"] }
 anyhow = "1.0"
 notify = "5.0.0-pre.9"
 tobj = "3.0"
 egui = "0.12"
 egui_winit_platform = "0.8"
+egui_wgpu_backend = "0.9"
 wgpu = "0.9"
-
-[dependencies.egui_wgpu_backend]
-git = "https://github.com/LPGhatguy/egui_wgpu_backend"
-rev = "3f2c504bacb12576734bf5c67194dc08209ac491"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.8"
@@ -31,4 +28,4 @@ env_logger = "0.8"
 console_error_panic_hook = "0.1"
 console_log = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "=0.3.50", features = [] }
+web-sys = { version="=0.3.50", features=[] }
