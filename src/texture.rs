@@ -22,7 +22,7 @@ impl Texture {
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: wgpu::TextureUsage::SAMPLED
-                | wgpu::TextureUsage::COPY_DST
+                | wgpu::TextureUsage::RENDER_ATTACHMENT
                 | wgpu::TextureUsage::STORAGE,
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());

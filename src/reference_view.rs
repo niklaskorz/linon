@@ -26,6 +26,16 @@ impl ReferenceView {
             Some("reference_texture"),
         );
 
+        let vertex_buffer_layout = wgpu::VertexBufferLayout {
+            array_stride: 3 * 32,
+            step_mode: wgpu::InputStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                offset: 0,
+                shader_location: 0,
+                format: wgpu::VertexFormat::Float32x3,
+            }],
+        };
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("render_pipeline_layout"),
@@ -38,7 +48,7 @@ impl ReferenceView {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "main",
-                buffers: &[],
+                buffers: &[vertex_buffer_layout],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -64,7 +74,13 @@ impl ReferenceView {
         }
     }
 
-    pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder) {
+    pub fn render(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        vertices: wgpu::BufferSlice,
+        faces: wgpu::BufferSlice,
+        num_faces: u32,
+    ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("rpass"),
             color_attachments: &[wgpu::RenderPassColorAttachment {
@@ -85,8 +101,8 @@ impl ReferenceView {
         rpass.set_pipeline(&self.render_pipeline);
         // rpass.set_bind_group(0, &self.diffuse_bind_group, &[]);
         // rpass.set_bind_group(1, &self.uniform_bind_group, &[]);
-        // rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        // rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        // rpass.draw_indexed(0..self.num_indices, 0, 0..1);
+        rpass.set_vertex_buffer(0, vertices);
+        rpass.set_index_buffer(faces, wgpu::IndexFormat::Uint32);
+        rpass.draw_indexed(0..(num_faces * 3), 0, 0..1);
     }
 }

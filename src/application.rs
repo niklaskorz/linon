@@ -32,6 +32,9 @@ pub struct Application {
     main_view: MainView,
     reference_view: ReferenceView,
     pub gui: Gui,
+    vertices_buffer: wgpu::Buffer,
+    faces_buffer: wgpu::Buffer,
+    num_faces: u32,
 }
 
 impl Application {
@@ -79,12 +82,12 @@ impl Application {
         let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("vertices_buffer"),
             contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsage::STORAGE,
+            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
         });
         let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("faces_buffer"),
             contents: bytemuck::cast_slice(&cbox::INDICES),
-            usage: wgpu::BufferUsage::STORAGE,
+            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::INDEX,
         });
         let center = get_center(&vertices);
 
@@ -118,6 +121,9 @@ impl Application {
             main_view,
             reference_view,
             gui,
+            vertices_buffer,
+            faces_buffer,
+            num_faces: (cbox::INDICES.len() / 3) as u32,
         })
     }
 
@@ -135,27 +141,28 @@ impl Application {
     pub fn load_model(&mut self, vertices: &mut [f32], indices: &[u32]) {
         normalize_vertices(vertices);
 
-        let vertices_buffer = self
+        self.vertices_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices_buffer"),
                 contents: bytemuck::cast_slice(vertices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
-        let faces_buffer = self
+        self.faces_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
                 contents: bytemuck::cast_slice(indices),
                 usage: wgpu::BufferUsage::STORAGE,
             });
+        self.num_faces = (indices.len() / 3) as u32;
         let center = get_center(vertices);
 
         self.main_view.update_model(
             &self.device,
             &self.queue,
-            vertices_buffer.as_entire_binding(),
-            faces_buffer.as_entire_binding(),
+            self.vertices_buffer.as_entire_binding(),
+            self.faces_buffer.as_entire_binding(),
             center,
         );
     }
@@ -180,7 +187,12 @@ impl Application {
             self.main_view.render(&mut encoder);
             encoder.pop_debug_group();
             encoder.push_debug_group("render reference view");
-            self.reference_view.render(&mut encoder);
+            self.reference_view.render(
+                &mut encoder,
+                self.vertices_buffer.slice(..),
+                self.faces_buffer.slice(..),
+                self.num_faces,
+            );
             encoder.pop_debug_group();
             self.queue.submit(Some(encoder.finish()));
         }
