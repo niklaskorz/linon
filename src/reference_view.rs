@@ -57,7 +57,7 @@ impl ReferenceView {
             multisample: wgpu::MultisampleState::default(),
         });
 
-        ReferenceView {
+        Self {
             texture,
             render_pipeline_layout,
             render_pipeline,

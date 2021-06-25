@@ -1,8 +1,10 @@
 mod application;
 mod arcball;
+mod camera;
 mod cornell_box;
 mod functions;
 mod gui;
+mod main_view;
 mod reference_view;
 mod texture;
 
