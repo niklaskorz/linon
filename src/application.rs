@@ -7,20 +7,6 @@ use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
-#[repr(C)]
-#[derive(Debug, Clone)]
-struct Vertices {
-    length: u32,
-    data: Vec<u32>,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone)]
-struct Faces {
-    length: u32,
-    data: Vec<u32>,
-}
-
 pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
 
 pub struct Application {
@@ -35,7 +21,7 @@ pub struct Application {
     reference_view: ReferenceView,
     vertices_buffer: wgpu::Buffer,
     faces_buffer: wgpu::Buffer,
-    num_faces: u32,
+    indices: u32,
     // egui
     platform: egui_winit_platform::Platform,
     rpass: egui_wgpu_backend::RenderPass,
@@ -52,7 +38,7 @@ pub struct Application {
 impl Application {
     pub async fn new(window: &Window) -> Result<Self> {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::BackendBit::DX12);
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -96,9 +82,10 @@ impl Application {
             contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
         });
+        let indices = cbox::INDICES;
         let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("faces_buffer"),
-            contents: bytemuck::cast_slice(&cbox::INDICES),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::INDEX,
         });
         let center = get_center(&vertices);
@@ -136,7 +123,7 @@ impl Application {
             reference_view,
             vertices_buffer,
             faces_buffer,
-            num_faces: (cbox::INDICES.len() / 3) as u32,
+            indices: indices.len() as u32,
             // egui
             platform,
             rpass,
@@ -187,7 +174,7 @@ impl Application {
                 contents: bytemuck::cast_slice(indices),
                 usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::INDEX,
             });
-        self.num_faces = (indices.len() / 3) as u32;
+        self.indices = indices.len() as u32;
         let center = get_center(vertices);
 
         self.main_view.update_model(
@@ -362,7 +349,7 @@ impl Application {
                 &mut encoder,
                 self.vertices_buffer.slice(..),
                 self.faces_buffer.slice(..),
-                self.num_faces,
+                self.indices,
             );
             encoder.pop_debug_group();
             self.queue.submit(Some(encoder.finish()));

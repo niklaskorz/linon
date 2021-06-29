@@ -100,7 +100,7 @@ impl ReferenceView {
         });
 
         let vertex_buffer_layout = wgpu::VertexBufferLayout {
-            array_stride: 3 * 32,
+            array_stride: 12,
             step_mode: wgpu::InputStepMode::Vertex,
             attributes: &[wgpu::VertexAttribute {
                 offset: 0,
@@ -135,7 +135,15 @@ impl ReferenceView {
                     write_mask: wgpu::ColorWrite::ALL,
                 }],
             }),
-            primitive: wgpu::PrimitiveState::default(),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                clamp_depth: false,
+                conservative: false,
+            },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
         });
@@ -244,7 +252,7 @@ impl ReferenceView {
         encoder: &mut wgpu::CommandEncoder,
         vertices: wgpu::BufferSlice,
         faces: wgpu::BufferSlice,
-        num_faces: u32,
+        indices: u32,
     ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("rpass"),
@@ -264,10 +272,9 @@ impl ReferenceView {
             depth_stencil_attachment: None,
         });
         rpass.set_pipeline(&self.render_pipeline);
-        // rpass.set_bind_group(0, &self.diffuse_bind_group, &[]);
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
         rpass.set_vertex_buffer(0, vertices);
         rpass.set_index_buffer(faces, wgpu::IndexFormat::Uint32);
-        rpass.draw_indexed(0..(num_faces * 3), 0, 0..1);
+        rpass.draw_indexed(0..indices, 0, 0..1);
     }
 }
