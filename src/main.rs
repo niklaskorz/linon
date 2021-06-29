@@ -2,10 +2,10 @@ mod application;
 mod arcball;
 mod cornell_box;
 mod functions;
-mod gui;
 mod main_view;
 mod reference_view;
 mod texture;
+mod vertices;
 
 use anyhow::Result;
 use application::Application;
@@ -39,8 +39,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     }
 
     event_loop.run(move |event, _, control_flow| {
-        app.gui.handle_event(&event);
-        if app.gui.captures_event(&event) {
+        app.handle_event(&event);
+        if app.captures_event(&event) {
             return;
         }
 
@@ -79,9 +79,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => match input.virtual_keycode {
-                Some(VirtualKeyCode::Space) => {
-                    app.reset_camera();
-                }
                 Some(VirtualKeyCode::R) => {
                     app.load_default_model();
                 }

@@ -1,15 +1,16 @@
 use std::borrow::Cow;
 
-use crate::{gui::INITIAL_SIDEBAR_WIDTH, texture::Texture};
+use crate::{application::INITIAL_SIDEBAR_WIDTH, texture::Texture};
 
 pub struct ReferenceView {
-    pub texture: Texture,
+    texture: Texture,
+    texture_id: egui::TextureId,
     _render_pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
 }
 
 impl ReferenceView {
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(rpass: &mut egui_wgpu_backend::RenderPass, device: &wgpu::Device) -> Self {
         let shader_src = include_str!("reference_view.wgsl");
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("reference_shader"),
@@ -24,6 +25,11 @@ impl ReferenceView {
             &device,
             (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32),
             Some("reference_texture"),
+        );
+        let texture_id = rpass.egui_texture_from_wgpu_texture(
+            device,
+            &texture.texture,
+            wgpu::FilterMode::Linear,
         );
 
         let vertex_buffer_layout = wgpu::VertexBufferLayout {
@@ -69,9 +75,17 @@ impl ReferenceView {
 
         Self {
             texture,
+            texture_id,
             _render_pipeline_layout: render_pipeline_layout,
             render_pipeline,
         }
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui) {
+        ui.image(
+            self.texture_id,
+            (INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH),
+        );
     }
 
     pub fn render(

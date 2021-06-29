@@ -4,6 +4,7 @@ use crate::{
     texture::Texture,
 };
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
+use egui_wgpu_backend::epi::TextureAllocator;
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
 
@@ -46,7 +47,8 @@ struct Settings {
 }
 
 pub struct MainView {
-    pub texture: Texture,
+    texture: Texture,
+    texture_id: egui::TextureId,
     shader_src: String,
     _shader: wgpu::ShaderModule,
     compute_bind_group_layout: wgpu::BindGroupLayout,
@@ -65,6 +67,7 @@ pub struct MainView {
 
 impl MainView {
     pub fn new(
+        rpass: &mut egui_wgpu_backend::RenderPass,
         device: &wgpu::Device,
         vertices_buffer_binding: wgpu::BindingResource,
         faces_buffer_binding: wgpu::BindingResource,
@@ -85,7 +88,12 @@ impl MainView {
             flags: wgpu::ShaderFlags::VALIDATION,
         });
 
-        let texture = Texture::new(&device, (width, height), Some("main_texture"));
+        let texture = Texture::new(device, (width, height), Some("main_texture"));
+        let texture_id = rpass.egui_texture_from_wgpu_texture(
+            device,
+            &texture.texture,
+            wgpu::FilterMode::Linear,
+        );
 
         let settings = Settings { field_weight: 0.01 };
         let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -212,6 +220,7 @@ impl MainView {
 
         Self {
             texture,
+            texture_id,
             shader_src: shader_src.to_string(),
             _shader: shader,
             compute_bind_group_layout,
@@ -270,7 +279,7 @@ impl MainView {
         self.needs_redraw = true;
     }
 
-    pub fn reset_camera(&mut self, queue: &wgpu::Queue) {
+    fn reset_camera(&mut self, queue: &wgpu::Queue) {
         let center = self.camera.center;
         let (width, height) = self.texture.dimensions;
         self.camera = ArcballCamera::new(center, 1.0, [width as f32, height as f32]);
@@ -278,12 +287,12 @@ impl MainView {
         self.update_camera(queue);
     }
 
-    pub fn on_mouse_wheel(&mut self, queue: &wgpu::Queue, delta: f32) {
+    fn on_mouse_wheel(&mut self, queue: &wgpu::Queue, delta: f32) {
         self.camera.zoom(delta, 1.0 / 60.0);
         self.update_camera(queue);
     }
 
-    pub fn on_cursor_moved(
+    fn on_cursor_moved(
         &mut self,
         queue: &wgpu::Queue,
         camera_op: CameraOperation,
@@ -322,12 +331,19 @@ impl MainView {
 
     pub fn resize_texture(
         &mut self,
+        rpass: &mut egui_wgpu_backend::RenderPass,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
     ) {
-        self.texture = Texture::new(&device, (width, height), Some("texture"));
+        rpass.free(self.texture_id);
+        self.texture = Texture::new(device, (width, height), Some("texture"));
+        self.texture_id = rpass.egui_texture_from_wgpu_texture(
+            device,
+            &self.texture.texture,
+            wgpu::FilterMode::Linear,
+        );
         self.compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.compute_bind_group_layout,
             entries: &[
@@ -390,6 +406,44 @@ impl MainView {
         self.needs_redraw = true;
 
         Ok(())
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        rpass: &mut egui_wgpu_backend::RenderPass,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
+        let size = ui.available_size();
+        if self.texture.dimensions != (size.x as u32, size.y as u32) {
+            self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
+            // self.gui.change_texture(&device, &self.texture.texture);
+        }
+
+        let input = ui.input();
+        if input.key_pressed(egui::Key::Space) {
+            self.reset_camera(queue);
+        }
+        let camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
+            CameraOperation::Rotate
+        } else if input.pointer.button_down(egui::PointerButton::Secondary) {
+            CameraOperation::Pan
+        } else {
+            CameraOperation::None
+        };
+        let resp = ui.image(self.texture_id, size);
+        if let Some(pos) = resp.hover_pos() {
+            self.on_cursor_moved(
+                queue,
+                camera_op,
+                (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
+            );
+        }
+        let scroll_delta = ui.input().scroll_delta;
+        if scroll_delta.y != 0.0 {
+            self.on_mouse_wheel(queue, scroll_delta.y);
+        }
     }
 
     pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder) {

@@ -1,9 +1,9 @@
 use crate::cornell_box as cbox;
-use crate::gui::{Gui, INITIAL_SIDEBAR_WIDTH};
+use crate::functions::PredefinedFunction;
 use crate::main_view::MainView;
 use crate::reference_view::ReferenceView;
+use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
-use cgmath::Vector3;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -21,6 +21,8 @@ struct Faces {
     data: Vec<u32>,
 }
 
+pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
+
 pub struct Application {
     _instance: wgpu::Instance,
     surface: wgpu::Surface,
@@ -31,10 +33,20 @@ pub struct Application {
     swap_chain: wgpu::SwapChain,
     main_view: MainView,
     reference_view: ReferenceView,
-    pub gui: Gui,
     vertices_buffer: wgpu::Buffer,
     faces_buffer: wgpu::Buffer,
     num_faces: u32,
+    // egui
+    platform: egui_winit_platform::Platform,
+    rpass: egui_wgpu_backend::RenderPass,
+    start_time: std::time::Instant,
+    previous_frame_time: Option<f32>,
+    // gui state
+    shader_error: Option<String>,
+    rotate_scene: bool,
+    field_weight: f32,
+    predefined_function: PredefinedFunction,
+    field_function: String,
 }
 
 impl Application {
@@ -91,7 +103,18 @@ impl Application {
         });
         let center = get_center(&vertices);
 
+        let platform =
+            egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
+                physical_width: size.width,
+                physical_height: size.height,
+                scale_factor: window.scale_factor(),
+                font_definitions: egui::FontDefinitions::default(),
+                style: Default::default(),
+            });
+        let mut rpass = egui_wgpu_backend::RenderPass::new(&device, swapchain_format, 1);
+
         let main_view = MainView::new(
+            &mut rpass,
             &device,
             vertices_buffer.as_entire_binding(),
             faces_buffer.as_entire_binding(),
@@ -99,16 +122,7 @@ impl Application {
             size.width - INITIAL_SIDEBAR_WIDTH as u32,
             size.height,
         );
-        let reference_view = ReferenceView::new(&device);
-
-        let gui = Gui::new(
-            size,
-            window.scale_factor(),
-            &device,
-            swapchain_format,
-            &main_view.texture.texture,
-            &reference_view.texture.texture,
-        );
+        let reference_view = ReferenceView::new(&mut rpass, &device);
 
         Ok(Self {
             _instance: instance,
@@ -120,11 +134,29 @@ impl Application {
             swap_chain,
             main_view,
             reference_view,
-            gui,
             vertices_buffer,
             faces_buffer,
             num_faces: (cbox::INDICES.len() / 3) as u32,
+            // egui
+            platform,
+            rpass,
+            start_time: std::time::Instant::now(),
+            previous_frame_time: None,
+            // gui state
+            shader_error: None,
+            rotate_scene: false,
+            field_weight: 0.001,
+            predefined_function: PredefinedFunction::TranslationX,
+            field_function: PredefinedFunction::TranslationX.to_code(),
         })
+    }
+
+    pub fn handle_event<T>(&mut self, winit_event: &winit::event::Event<T>) {
+        self.platform.handle_event(winit_event)
+    }
+
+    pub fn captures_event<T>(&self, winit_event: &winit::event::Event<T>) -> bool {
+        self.platform.captures_event(winit_event)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -146,14 +178,14 @@ impl Application {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices_buffer"),
                 contents: bytemuck::cast_slice(vertices),
-                usage: wgpu::BufferUsage::STORAGE,
+                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
             });
         self.faces_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
                 contents: bytemuck::cast_slice(indices),
-                usage: wgpu::BufferUsage::STORAGE,
+                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::INDEX,
             });
         self.num_faces = (indices.len() / 3) as u32;
         let center = get_center(vertices);
@@ -167,13 +199,126 @@ impl Application {
         );
     }
 
-    pub fn reset_camera(&mut self) {
-        self.main_view.reset_camera(&self.queue);
-    }
-
     pub fn reload_compute_shader(&mut self, new_src: &str) -> Result<(), wgpu::Error> {
         self.main_view
-            .reload_shader(&self.device, Some(new_src), self.gui.field_function.clone())
+            .reload_shader(&self.device, Some(new_src), self.field_function.clone())
+    }
+
+    fn show(&mut self) {
+        let ctx = &self.platform.context();
+        let queue = &self.queue;
+        let Self {
+            main_view,
+            reference_view,
+            rpass,
+            shader_error,
+            rotate_scene,
+            field_weight,
+            field_function,
+            predefined_function,
+            ..
+        } = self;
+        let mut field_function_changed = false;
+        egui::SidePanel::left("Settings", INITIAL_SIDEBAR_WIDTH).show(ctx, |ui| {
+            if ui
+                .checkbox(rotate_scene, "Rotate scene instead of camera")
+                .changed()
+            {
+                main_view.rotate_scene = *rotate_scene;
+                main_view.update_camera(queue);
+            }
+            ui.horizontal(|ui| {
+                ui.label("Field weight:");
+                if ui.add(egui::Slider::new(field_weight, 0.0..=0.1)).changed() {
+                    main_view.update_settings(queue, *field_weight);
+                }
+            });
+            egui::ComboBox::from_label("Predefined function")
+                .selected_text(predefined_function.to_string())
+                .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::TranslationX,
+                            PredefinedFunction::TranslationX.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::TranslationX.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::TranslationZ,
+                            PredefinedFunction::TranslationZ.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::TranslationZ.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::Rotation,
+                            PredefinedFunction::Rotation.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::Rotation.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::LorenzAttractor,
+                            PredefinedFunction::LorenzAttractor.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::LorenzAttractor.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::RoesslerAttractor,
+                            PredefinedFunction::RoesslerAttractor.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::RoesslerAttractor.to_code();
+                        field_function_changed = true;
+                    }
+                });
+            ui.vertical(|ui| {
+                ui.label("Custom function:");
+                if ui.code_editor(field_function).lost_focus() {
+                    *predefined_function = PredefinedFunction::Custom;
+                    field_function_changed = true;
+                }
+                if let Some(shader_error) = shader_error {
+                    ui.label(format!("Shader error: {}", shader_error));
+                }
+            });
+            reference_view.show(ui);
+        });
+        let device = &self.device;
+        let queue = &self.queue;
+        egui::CentralPanel::default().show(ctx, |ui| {
+            main_view.show(ui, rpass, device, queue);
+        });
+        if field_function_changed {
+            if let Err(e) = self
+                .main_view
+                .reload_shader(device, None, field_function.clone())
+            {
+                self.shader_error = Some(e.to_string());
+            } else {
+                self.shader_error = None;
+            }
+        }
     }
 
     pub fn render(&mut self, scale_factor: f32) {
@@ -203,106 +348,51 @@ impl Application {
             .expect("failed to acquire next swap chain texture")
             .output;
 
-        let dimensions = self.gui.draw(
-            &frame.view,
-            self.sc_desc.width,
-            self.sc_desc.height,
+        self.platform
+            .update_time(self.start_time.elapsed().as_secs_f64());
+
+        // Begin frame
+        let start = std::time::Instant::now();
+        self.platform.begin_frame();
+
+        // Show UI
+        self.show();
+
+        // End frame
+        let (_, paint_commands) = self.platform.end_frame();
+        let paint_jobs = self.platform.context().tessellate(paint_commands);
+
+        let frame_time = (std::time::Instant::now() - start).as_secs_f32();
+        self.previous_frame_time = Some(frame_time);
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("gui_encoder"),
+            });
+
+        let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
+            physical_width: self.sc_desc.width,
+            physical_height: self.sc_desc.height,
             scale_factor,
+        };
+        self.rpass.update_texture(
             &self.device,
             &self.queue,
+            &self.platform.context().texture(),
         );
-        if self.main_view.texture.dimensions != dimensions {
-            self.main_view
-                .resize_texture(&self.device, &self.queue, dimensions.0, dimensions.1);
-            self.gui
-                .change_texture(&self.device, &self.main_view.texture.texture);
-        }
+        self.rpass.update_user_textures(&self.device, &self.queue);
+        self.rpass
+            .update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
 
-        if let Some(pos) = self.gui.cursor_pos {
-            self.main_view
-                .on_cursor_moved(&self.queue, self.gui.camera_op, pos);
-        }
-        if self.gui.scroll_delta.y != 0.0 {
-            self.main_view
-                .on_mouse_wheel(&self.queue, self.gui.scroll_delta.y);
-        }
+        self.rpass.execute(
+            &mut encoder,
+            &frame.view,
+            &paint_jobs,
+            &screen_descriptor,
+            None,
+        );
 
-        if self.gui.rotate_scene_changed {
-            self.gui.rotate_scene_changed = false;
-            self.main_view.rotate_scene = self.gui.rotate_scene;
-            self.main_view.update_camera(&self.queue);
-        }
-        if self.gui.field_weight_changed {
-            self.gui.field_weight_changed = false;
-            self.main_view
-                .update_settings(&self.queue, self.gui.field_weight);
-        }
-        if self.gui.field_function_changed {
-            self.gui.field_function_changed = false;
-            if let Err(e) =
-                self.main_view
-                    .reload_shader(&self.device, None, self.gui.field_function.clone())
-            {
-                self.gui.shader_error = Some(e.to_string());
-            } else {
-                self.gui.shader_error = None;
-            }
-        }
+        self.queue.submit(Some(encoder.finish()));
     }
-}
-
-fn normalize_vertices(vertices: &mut [f32]) {
-    let mut max: f32 = 1.0;
-    let mut min: f32 = -1.0;
-    for (i, x) in vertices.iter().enumerate() {
-        if i == 0 || *x > max {
-            max = *x;
-        }
-        if i == 0 || *x < min {
-            min = *x;
-        }
-    }
-    for x in vertices.iter_mut() {
-        *x = (*x - min) / (max - min) * 2.0 - 1.0;
-    }
-}
-
-fn get_center(vertices: &[f32]) -> Vector3<f32> {
-    let mut min_x = vertices[0];
-    let mut min_y = vertices[1];
-    let mut min_z = vertices[2];
-    let mut max_x = vertices[0];
-    let mut max_y = vertices[1];
-    let mut max_z = vertices[2];
-
-    let num_vertices = vertices.len() / 3;
-    for i in 1..num_vertices {
-        let x = vertices[3 * i];
-        if x < min_x {
-            min_x = x;
-        }
-        if x > max_x {
-            max_x = x;
-        }
-        let y = vertices[3 * i + 1];
-        if y < min_y {
-            min_y = y;
-        }
-        if y > max_y {
-            max_y = y;
-        }
-        let z = vertices[3 * i + 2];
-        if z < min_z {
-            min_z = z;
-        }
-        if z > max_z {
-            max_z = z;
-        }
-    }
-
-    Vector3::new(
-        (min_x + max_x) / 2.0,
-        (min_y + max_y) / 2.0,
-        (min_z + max_z) / 2.0,
-    )
 }
