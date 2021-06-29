@@ -418,8 +418,8 @@ impl MainView {
         let size = ui.available_size();
         if self.texture.dimensions != (size.x as u32, size.y as u32) {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
-            // self.gui.change_texture(&device, &self.texture.texture);
         }
+        let resp = ui.image(self.texture_id, size);
 
         let input = ui.input();
         if input.key_pressed(egui::Key::Space) {
@@ -432,8 +432,12 @@ impl MainView {
         } else {
             CameraOperation::None
         };
-        let resp = ui.image(self.texture_id, size);
-        if let Some(pos) = resp.hover_pos() {
+        let pointer_pos = if input.pointer.is_moving() {
+            input.pointer.interact_pos()
+        } else {
+            None
+        };
+        if let Some(pos) = pointer_pos {
             self.on_cursor_moved(
                 queue,
                 camera_op,
