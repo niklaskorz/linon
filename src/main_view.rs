@@ -60,7 +60,7 @@ pub struct MainView {
     settings_buffer: wgpu::Buffer,
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
-    prev_cursor_pos: Option<(f32, f32)>,
+    prev_pointer_pos: Option<(f32, f32)>,
     pub needs_redraw: bool,
     pub rotate_scene: bool,
 }
@@ -233,7 +233,7 @@ impl MainView {
 
             camera_buffer,
             camera,
-            prev_cursor_pos: None,
+            prev_pointer_pos: None,
             needs_redraw: true,
             rotate_scene: false,
         }
@@ -287,22 +287,22 @@ impl MainView {
         self.update_camera(queue);
     }
 
-    fn on_mouse_wheel(&mut self, queue: &wgpu::Queue, delta: f32) {
+    fn on_zoom(&mut self, queue: &wgpu::Queue, delta: f32) {
         self.camera.zoom(delta, 1.0 / 60.0);
         self.update_camera(queue);
     }
 
-    fn on_cursor_moved(
+    fn on_pointer_moved(
         &mut self,
         queue: &wgpu::Queue,
         camera_op: CameraOperation,
         pos: (f32, f32),
     ) {
-        if self.prev_cursor_pos.is_none() {
-            self.prev_cursor_pos = Some(pos);
+        if self.prev_pointer_pos.is_none() {
+            self.prev_pointer_pos = Some(pos);
             return;
         }
-        let prev = self.prev_cursor_pos.unwrap();
+        let prev = self.prev_pointer_pos.unwrap();
         match camera_op {
             CameraOperation::Rotate => {
                 self.camera.rotate(
@@ -320,7 +320,7 @@ impl MainView {
             }
             CameraOperation::None => {}
         }
-        self.prev_cursor_pos = Some(pos);
+        self.prev_pointer_pos = Some(pos);
     }
 
     pub fn update_settings(&mut self, queue: &wgpu::Queue, field_weight: f32) {
@@ -421,7 +421,6 @@ impl MainView {
         }
         let resp = ui.image(self.texture_id, size);
         let input = ui.input();
-
         if let Some(pos) = resp.hover_pos() {
             if input.key_pressed(egui::Key::Space) {
                 self.reset_camera(queue);
@@ -434,7 +433,7 @@ impl MainView {
                 CameraOperation::None
             };
             if input.pointer.is_moving() {
-                self.on_cursor_moved(
+                self.on_pointer_moved(
                     queue,
                     camera_op,
                     (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
@@ -442,7 +441,7 @@ impl MainView {
             }
             let scroll_delta = ui.input().scroll_delta;
             if scroll_delta.y != 0.0 {
-                self.on_mouse_wheel(queue, scroll_delta.y);
+                self.on_zoom(queue, scroll_delta.y);
             }
         }
     }

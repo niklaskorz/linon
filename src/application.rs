@@ -122,7 +122,7 @@ impl Application {
             size.width - INITIAL_SIDEBAR_WIDTH as u32,
             size.height,
         );
-        let reference_view = ReferenceView::new(&mut rpass, &device);
+        let reference_view = ReferenceView::new(&mut rpass, &device, center);
 
         Ok(Self {
             _instance: instance,
@@ -206,7 +206,6 @@ impl Application {
 
     fn show(&mut self) {
         let ctx = &self.platform.context();
-        let queue = &self.queue;
         let Self {
             main_view,
             reference_view,
@@ -219,6 +218,8 @@ impl Application {
             ..
         } = self;
         let mut field_function_changed = false;
+        let device = &self.device;
+        let queue = &self.queue;
         egui::SidePanel::left("Settings", INITIAL_SIDEBAR_WIDTH).show(ctx, |ui| {
             if ui
                 .checkbox(rotate_scene, "Rotate scene instead of camera")
@@ -302,7 +303,7 @@ impl Application {
                     ui.label(format!("Shader error: {}", shader_error));
                 }
             });
-            reference_view.show(ui);
+            reference_view.show(ui, device, queue);
         });
         let device = &self.device;
         let queue = &self.queue;
@@ -345,15 +346,17 @@ impl Application {
         let frame_time = (std::time::Instant::now() - start).as_secs_f32();
         self.previous_frame_time = Some(frame_time);
 
-        if self.main_view.needs_redraw {
+        if self.main_view.needs_redraw || self.reference_view.needs_redraw {
             let mut encoder = self
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("encoder"),
                 });
-            encoder.push_debug_group("render main view");
-            self.main_view.render(&mut encoder);
-            encoder.pop_debug_group();
+            if self.main_view.needs_redraw {
+                encoder.push_debug_group("render main view");
+                self.main_view.render(&mut encoder);
+                encoder.pop_debug_group();
+            }
             encoder.push_debug_group("render reference view");
             self.reference_view.render(
                 &mut encoder,

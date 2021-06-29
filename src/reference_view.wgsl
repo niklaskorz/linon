@@ -1,9 +1,9 @@
-// [[block]]
-// struct Uniforms {
-//     view_projection: mat4x4<f32>;
-// };
-// [[group(1), binding(0)]]
-// var<uniform> uniforms: Uniforms;
+[[block]]
+struct Uniforms {
+    view_projection: mat4x4<f32>;
+};
+[[group(0), binding(0)]]
+var<uniform> uniforms: Uniforms;
 
 struct VertexInput {
     [[location(0)]]
@@ -17,8 +17,7 @@ struct VertexOutput {
 [[stage(vertex)]]
 fn main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
-    // output.position = uniforms.view_projection * vec4<f32>(input.position, 1.0);
-    output.position = vec4<f32>(input.position, 1.0);
+    output.position = uniforms.view_projection * vec4<f32>(input.position, 1.0);
     return output;
 }
 
