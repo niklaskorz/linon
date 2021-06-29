@@ -351,12 +351,7 @@ impl Application {
                 encoder.pop_debug_group();
             }
             encoder.push_debug_group("render reference view");
-            self.reference_view.render(
-                &mut encoder,
-                self.vertices_buffer.slice(..),
-                self.faces_buffer.slice(..),
-                self.indices,
-            );
+            self.reference_view.render(&mut encoder, self.indices);
             encoder.pop_debug_group();
             self.queue.submit(Some(encoder.finish()));
         }

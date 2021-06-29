@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::{
     application::INITIAL_SIDEBAR_WIDTH,
     arcball::{ArcballCamera, CameraOperation},
-    texture::Texture,
+    texture::{DepthTexture, Texture},
 };
 use std::borrow::Cow;
 
@@ -26,6 +26,7 @@ struct Uniforms {
 pub struct ReferenceView {
     texture: Texture,
     texture_id: egui::TextureId,
+    depth_texture: DepthTexture,
     render_pipeline: wgpu::RenderPipeline,
     camera: ArcballCamera<f32>,
     uniform_buffer: wgpu::Buffer,
@@ -53,16 +54,16 @@ impl ReferenceView {
             flags: wgpu::ShaderFlags::VALIDATION,
         });
 
-        let texture = Texture::new(
-            &device,
-            (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32),
-            Some("reference_texture"),
-        );
+        let dimensions = (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32);
+
+        let texture = Texture::new(&device, dimensions, Some("reference_texture"));
         let texture_id = rpass.egui_texture_from_wgpu_texture(
             device,
             &texture.texture,
             wgpu::FilterMode::Linear,
         );
+
+        let depth_texture = DepthTexture::new(&device, dimensions, Some("depth_texture"));
 
         let mut camera =
             ArcballCamera::new(center, 1.0, [INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH]);
@@ -146,16 +147,6 @@ impl ReferenceView {
             label: Some("mesh_bind_group"),
         });
 
-        let _vertex_buffer_layout = wgpu::VertexBufferLayout {
-            array_stride: 12,
-            step_mode: wgpu::InputStepMode::Vertex,
-            attributes: &[wgpu::VertexAttribute {
-                offset: 0,
-                shader_location: 0,
-                format: wgpu::VertexFormat::Float32x3,
-            }],
-        };
-
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("render_pipeline_layout"),
@@ -191,13 +182,20 @@ impl ReferenceView {
                 clamp_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
         });
 
         Self {
             texture,
             texture_id,
+            depth_texture,
             render_pipeline,
             camera,
             uniform_buffer,
@@ -297,13 +295,7 @@ impl ReferenceView {
         }
     }
 
-    pub fn render(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        _vertices: wgpu::BufferSlice,
-        _faces: wgpu::BufferSlice,
-        indices: u32,
-    ) {
+    pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder, indices: u32) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("rpass"),
             color_attachments: &[wgpu::RenderPassColorAttachment {
@@ -319,7 +311,14 @@ impl ReferenceView {
                     store: true,
                 },
             }],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }),
         });
         rpass.set_pipeline(&self.render_pipeline);
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
