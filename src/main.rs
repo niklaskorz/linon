@@ -23,7 +23,7 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
     let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| {
         tx.send(res).expect("sending watch event failed");
     })?;
-    watcher.watch("src/compute.wgsl", RecursiveMode::NonRecursive)?;
+    watcher.watch("src/main_view.wgsl", RecursiveMode::NonRecursive)?;
     Ok(watcher)
 }
 
@@ -94,7 +94,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 }
                 if reload_compute_shader {
                     println!("Compute shader has changed");
-                    let source = fs::read_to_string("src/compute.wgsl")
+                    let source = fs::read_to_string("src/main_view.wgsl")
                         .expect("reading compute shader failed");
                     if let Err(e) = app.reload_compute_shader(&source) {
                         println!("Shader reload failed: {:?}", e);

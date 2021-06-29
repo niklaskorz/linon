@@ -75,7 +75,7 @@ impl MainView {
         width: u32,
         height: u32,
     ) -> Self {
-        let shader_src = include_str!("compute.wgsl");
+        let shader_src = include_str!("main_view.wgsl");
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&with_field_function(
