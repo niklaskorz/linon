@@ -16,7 +16,6 @@ struct CameraUniform {
     up: [f32; 4],
     view_matrix: [[f32; 4]; 4],
 }
-
 impl CameraUniform {
     fn moving(camera: &ArcballCamera<f32>) -> CameraUniform {
         let eye_pos = camera.eye_pos();

@@ -38,7 +38,7 @@ pub struct Application {
 impl Application {
     pub async fn new(window: &Window) -> Result<Self> {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::BackendBit::DX12);
+        let instance = wgpu::Instance::new(wgpu::BackendBit::VULKAN);
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -109,7 +109,13 @@ impl Application {
             size.width - INITIAL_SIDEBAR_WIDTH as u32,
             size.height,
         );
-        let reference_view = ReferenceView::new(&mut rpass, &device, center);
+        let reference_view = ReferenceView::new(
+            &mut rpass,
+            &device,
+            vertices_buffer.as_entire_binding(),
+            faces_buffer.as_entire_binding(),
+            center,
+        );
 
         Ok(Self {
             _instance: instance,

@@ -19,6 +19,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Uniforms {
+    camera_pos: [f32; 4],
     view_projection: [[f32; 4]; 4],
 }
 
@@ -29,6 +30,7 @@ pub struct ReferenceView {
     camera: ArcballCamera<f32>,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    mesh_bind_group: wgpu::BindGroup,
     prev_pointer_pos: Option<(f32, f32)>,
     pub needs_redraw: bool,
 }
@@ -37,6 +39,8 @@ impl ReferenceView {
     pub fn new(
         rpass: &mut egui_wgpu_backend::RenderPass,
         device: &wgpu::Device,
+        vertices_buffer_binding: wgpu::BindingResource,
+        faces_buffer_binding: wgpu::BindingResource,
         center: Vector3<f32>,
     ) -> Self {
         let shader_src = include_str!("reference_view.wgsl");
@@ -63,8 +67,10 @@ impl ReferenceView {
         let mut camera =
             ArcballCamera::new(center, 1.0, [INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH]);
         camera.zoom(-1.0, 1.0);
+        let eye_pos = camera.eye_pos();
 
         let uniforms = Uniforms {
+            camera_pos: [eye_pos.x, eye_pos.y, eye_pos.z, 0.0],
             view_projection: {
                 let view = camera.get_mat4();
                 let proj = cgmath::perspective(cgmath::Deg(45.0), 1.0, 0.1, 100.0);
@@ -81,7 +87,7 @@ impl ReferenceView {
                 label: Some("uniform_bind_group_layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStage::VERTEX,
+                    visibility: wgpu::ShaderStage::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -99,7 +105,48 @@ impl ReferenceView {
             }],
         });
 
-        let vertex_buffer_layout = wgpu::VertexBufferLayout {
+        let mesh_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("mesh_bind_group_layout"),
+            });
+        let mesh_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &mesh_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: vertices_buffer_binding,
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: faces_buffer_binding,
+                },
+            ],
+            label: Some("mesh_bind_group"),
+        });
+
+        let _vertex_buffer_layout = wgpu::VertexBufferLayout {
             array_stride: 12,
             step_mode: wgpu::InputStepMode::Vertex,
             attributes: &[wgpu::VertexAttribute {
@@ -112,7 +159,7 @@ impl ReferenceView {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("render_pipeline_layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
+                bind_group_layouts: &[&uniform_bind_group_layout, &mesh_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -121,7 +168,7 @@ impl ReferenceView {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "main",
-                buffers: &[vertex_buffer_layout],
+                buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -138,7 +185,7 @@ impl ReferenceView {
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
+                front_face: wgpu::FrontFace::Cw,
                 cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 clamp_depth: false,
@@ -155,13 +202,16 @@ impl ReferenceView {
             camera,
             uniform_buffer,
             uniform_bind_group,
+            mesh_bind_group,
             prev_pointer_pos: None,
             needs_redraw: true,
         }
     }
 
     fn update_camera(&mut self, queue: &wgpu::Queue) {
+        let eye_pos = self.camera.eye_pos();
         let uniforms = Uniforms {
+            camera_pos: [eye_pos.x, eye_pos.y, eye_pos.z, 0.0],
             view_projection: {
                 let view = self.camera.get_mat4();
                 let proj = cgmath::perspective(cgmath::Deg(45.0), 1.0, 0.1, 100.0);
@@ -250,8 +300,8 @@ impl ReferenceView {
     pub fn render(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        vertices: wgpu::BufferSlice,
-        faces: wgpu::BufferSlice,
+        _vertices: wgpu::BufferSlice,
+        _faces: wgpu::BufferSlice,
         indices: u32,
     ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -273,8 +323,7 @@ impl ReferenceView {
         });
         rpass.set_pipeline(&self.render_pipeline);
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
-        rpass.set_vertex_buffer(0, vertices);
-        rpass.set_index_buffer(faces, wgpu::IndexFormat::Uint32);
-        rpass.draw_indexed(0..indices, 0, 0..1);
+        rpass.set_bind_group(1, &self.mesh_bind_group, &[]);
+        rpass.draw(0..indices, 0..1);
     }
 }

@@ -23,7 +23,6 @@ struct Vertex {
     y: f32;
     z: f32;
 };
-
 [[block]]
 struct Vertices {
     data: [[stride(12)]] array<Vertex>;
@@ -36,7 +35,6 @@ struct Face {
     b: u32;
     c: u32;
 };
-
 [[block]]
 struct Faces {
     data: [[stride(12)]] array<Face>;
