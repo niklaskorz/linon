@@ -10,7 +10,7 @@ use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CameraUniform {
+struct CameraUniform {
     origin: [f32; 4],
     view_direction: [f32; 4],
     up: [f32; 4],
@@ -18,7 +18,7 @@ pub struct CameraUniform {
 }
 
 impl CameraUniform {
-    pub fn moving(camera: &ArcballCamera<f32>) -> CameraUniform {
+    fn moving(camera: &ArcballCamera<f32>) -> CameraUniform {
         let eye_pos = camera.eye_pos();
         let eye_dir = camera.eye_dir();
         let up_dir = camera.up_dir();
@@ -30,7 +30,7 @@ impl CameraUniform {
         }
     }
 
-    pub fn stationary(camera: &ArcballCamera<f32>) -> CameraUniform {
+    fn stationary(camera: &ArcballCamera<f32>) -> CameraUniform {
         CameraUniform {
             origin: [0.0, 0.0, 0.0, 0.0],
             view_direction: [0.0, 0.0, -1.0, 0.0],
@@ -420,33 +420,30 @@ impl MainView {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
         let resp = ui.image(self.texture_id, size);
-
         let input = ui.input();
-        if input.key_pressed(egui::Key::Space) {
-            self.reset_camera(queue);
-        }
-        let camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
-            CameraOperation::Rotate
-        } else if input.pointer.button_down(egui::PointerButton::Secondary) {
-            CameraOperation::Pan
-        } else {
-            CameraOperation::None
-        };
-        let pointer_pos = if input.pointer.is_moving() {
-            input.pointer.interact_pos()
-        } else {
-            None
-        };
-        if let Some(pos) = pointer_pos {
-            self.on_cursor_moved(
-                queue,
-                camera_op,
-                (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
-            );
-        }
-        let scroll_delta = ui.input().scroll_delta;
-        if scroll_delta.y != 0.0 {
-            self.on_mouse_wheel(queue, scroll_delta.y);
+
+        if let Some(pos) = resp.hover_pos() {
+            if input.key_pressed(egui::Key::Space) {
+                self.reset_camera(queue);
+            }
+            let camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
+                CameraOperation::Rotate
+            } else if input.pointer.button_down(egui::PointerButton::Secondary) {
+                CameraOperation::Pan
+            } else {
+                CameraOperation::None
+            };
+            if input.pointer.is_moving() {
+                self.on_cursor_moved(
+                    queue,
+                    camera_op,
+                    (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
+                );
+            }
+            let scroll_delta = ui.input().scroll_delta;
+            if scroll_delta.y != 0.0 {
+                self.on_mouse_wheel(queue, scroll_delta.y);
+            }
         }
     }
 
