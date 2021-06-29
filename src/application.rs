@@ -322,26 +322,6 @@ impl Application {
     }
 
     pub fn render(&mut self, scale_factor: f32) {
-        if self.main_view.needs_redraw {
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("encoder"),
-                });
-            encoder.push_debug_group("render main view");
-            self.main_view.render(&mut encoder);
-            encoder.pop_debug_group();
-            encoder.push_debug_group("render reference view");
-            self.reference_view.render(
-                &mut encoder,
-                self.vertices_buffer.slice(..),
-                self.faces_buffer.slice(..),
-                self.num_faces,
-            );
-            encoder.pop_debug_group();
-            self.queue.submit(Some(encoder.finish()));
-        }
-
         let frame = self
             .swap_chain
             .get_current_frame()
@@ -364,6 +344,26 @@ impl Application {
 
         let frame_time = (std::time::Instant::now() - start).as_secs_f32();
         self.previous_frame_time = Some(frame_time);
+
+        if self.main_view.needs_redraw {
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("encoder"),
+                });
+            encoder.push_debug_group("render main view");
+            self.main_view.render(&mut encoder);
+            encoder.pop_debug_group();
+            encoder.push_debug_group("render reference view");
+            self.reference_view.render(
+                &mut encoder,
+                self.vertices_buffer.slice(..),
+                self.faces_buffer.slice(..),
+                self.num_faces,
+            );
+            encoder.pop_debug_group();
+            self.queue.submit(Some(encoder.finish()));
+        }
 
         let mut encoder = self
             .device
