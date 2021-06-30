@@ -198,6 +198,10 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, sample_coor
         color = ray_color(cur_point, unit_dir, length(cur_dir));
 
         if (add_samples && (i % 10 == 0 || color.a > 0.0)) {
+            if (color.a > 0.0 && i % 10 != 0) {
+                i = i + 9;
+            }
+
             sample.position = vec4<f32>(cur_point, 0.0);
             sample.direction = vec4<f32>(unit_dir, 0.0);
             let index = sample_coords.x * 100 + sample_coords.y * 10 + i / 10;
