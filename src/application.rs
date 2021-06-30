@@ -233,7 +233,7 @@ impl Application {
             }
             ui.horizontal(|ui| {
                 ui.label("Field weight:");
-                if ui.add(egui::Slider::new(field_weight, 0.0..=0.1)).changed() {
+                if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
                     main_view.update_settings(queue, *field_weight);
                 }
             });

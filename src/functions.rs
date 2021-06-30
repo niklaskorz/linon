@@ -25,14 +25,14 @@ impl PredefinedFunction {
     pub fn to_code(&self) -> String {
         match self {
             Self::Custom => "".to_string(),
-            Self::TranslationX => "let dx = 0.001;
-let dy = 0.000;
-let dz = 0.000;
+            Self::TranslationX => "let dx = 0.01;
+let dy = 0.00;
+let dz = 0.00;
 return translate(v, dx, dy, dz);"
                 .to_string(),
-            Self::TranslationZ => "let dx = 0.000;
-let dy = 0.000;
-let dz = 0.005;
+            Self::TranslationZ => "let dx = 0.00;
+let dy = 0.00;
+let dz = 0.01;
 return translate(v, dx, dy, dz);"
                 .to_string(),
             Self::Rotation => "return rotateZ(v, PI / 2.0);".to_string(),
