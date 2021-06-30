@@ -85,6 +85,12 @@ let arrow_base_dir: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
 
 [[stage(vertex)]]
 fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
+    var output: VertexOutput;
+    if (input.ray_position.w < 0.0) {
+        output.clip_position = uniforms.view_projection * vec4<f32>(0.0, 0.0, 0.0, -10000.0);
+        return output;
+    }
+
     let rot_axis = cross(arrow_base_dir, -input.ray_direction.xyz);
     let rot_cos = dot(arrow_base_dir, -input.ray_direction.xyz);
     let rot_sin = sin(acos(rot_cos));
@@ -101,7 +107,6 @@ fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
     let translated = rotated + input.ray_position;
     let position = translated.xyz;
 
-    var output: VertexOutput;
     output.clip_position = uniforms.view_projection * vec4<f32>(position.xyz, 1.0);
     output.position = position;
     output.normal = input.normal;
