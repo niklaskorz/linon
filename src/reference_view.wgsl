@@ -41,6 +41,8 @@ struct VertexOutput {
     position: vec3<f32>;
     [[location(1)]]
     normal: vec3<f32>;
+    [[location(2)]]
+    color: vec3<f32>;
 };
 
 [[stage(vertex)]]
@@ -63,7 +65,26 @@ fn main(input: VertexInput) -> VertexOutput {
     output.clip_position = uniforms.view_projection * vec4<f32>(position, 1.0);
     output.position = position;
     output.normal = normalize(cross(d1, d2));
+    output.color = abs(output.normal);
 
+    return output;
+}
+
+struct ArrowsVertexInput {
+    [[location(0)]]
+    position: vec3<f32>;
+    [[location(1)]]
+    normal: vec3<f32>;
+};
+
+[[stage(vertex)]]
+fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
+    let position = 0.1 * input.position;
+    var output: VertexOutput;
+    output.clip_position = uniforms.view_projection * vec4<f32>(position, 1.0);
+    output.position = position;
+    output.normal = input.normal;
+    output.color = vec3<f32>(1.0, 1.0, 1.0);
     return output;
 }
 
@@ -87,6 +108,6 @@ fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
     let diffuse = diff * light_color;
     let spec = pow(intensity, shininess);
     let specular = spec * light_color;
-    let result = (ambient + diffuse + specular) * abs(input.normal);
+    let result = (ambient + diffuse + specular) * input.color;
     return vec4<f32>(result, 1.0);
 }

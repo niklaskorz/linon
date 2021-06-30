@@ -3,6 +3,7 @@ mod arcball;
 mod cornell_box;
 mod functions;
 mod main_view;
+mod ray_samples;
 mod reference_view;
 mod texture;
 mod vertices;

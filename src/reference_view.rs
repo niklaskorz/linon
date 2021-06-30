@@ -4,6 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::{
     application::INITIAL_SIDEBAR_WIDTH,
     arcball::{ArcballCamera, CameraOperation},
+    ray_samples::{create_allow_glyph, ArrowGlyphVertex},
     texture::{DepthTexture, Texture},
 };
 use std::borrow::Cow;
@@ -32,6 +33,11 @@ pub struct ReferenceView {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     mesh_bind_group: wgpu::BindGroup,
+
+    arrow_vertex_buffer: wgpu::Buffer,
+    arrow_vertex_count: u32,
+    arrow_render_pipeline: wgpu::RenderPipeline,
+
     prev_pointer_pos: Option<(f32, f32)>,
     pub needs_redraw: bool,
 }
@@ -192,6 +198,58 @@ impl ReferenceView {
             multisample: wgpu::MultisampleState::default(),
         });
 
+        let arrow_glyph = create_allow_glyph();
+        let arrow_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("arrow_vertex_buffer"),
+            contents: bytemuck::cast_slice(&arrow_glyph),
+            usage: wgpu::BufferUsage::VERTEX,
+        });
+        let arrow_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("arrow_render_pipeline_layout"),
+                bind_group_layouts: &[&uniform_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+        let arrow_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("arrow_render_pipeline"),
+                layout: Some(&arrow_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "arrows_main",
+                    buffers: &[ArrowGlyphVertex::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "main",
+                    targets: &[wgpu::ColorTargetState {
+                        format: texture.format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrite::ALL,
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Cw,
+                    cull_mode: None,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    clamp_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+            });
+
         Self {
             texture,
             texture_id,
@@ -202,6 +260,11 @@ impl ReferenceView {
             uniform_bind_group,
             mesh_bind_group,
             prev_pointer_pos: None,
+
+            arrow_vertex_buffer,
+            arrow_vertex_count: arrow_glyph.len() as u32,
+            arrow_render_pipeline,
+
             needs_redraw: true,
         }
     }
@@ -320,9 +383,15 @@ impl ReferenceView {
                 stencil_ops: None,
             }),
         });
+
         rpass.set_pipeline(&self.render_pipeline);
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
         rpass.set_bind_group(1, &self.mesh_bind_group, &[]);
         rpass.draw(0..indices, 0..1);
+
+        rpass.set_pipeline(&self.arrow_render_pipeline);
+        rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
+        rpass.set_vertex_buffer(0, self.arrow_vertex_buffer.slice(..));
+        rpass.draw(0..self.arrow_vertex_count, 0..1);
     }
 }
