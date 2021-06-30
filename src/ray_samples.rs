@@ -1,7 +1,10 @@
 use cgmath::{InnerSpace, Vector3};
 
 // 10x10 grid with 100 samples per point
-pub type RaySamples = [f32; 10 * 10 * 100];
+// Attributes:
+// position: vec4<f32>
+// direction: vec4<f32>
+pub type RaySamples = [f32; 8 * 10 * 10 * 100];
 
 #[rustfmt::skip]
 const ARROW_GLYPH_VERTICES: [f32; 15] = [
@@ -49,6 +52,25 @@ impl ArrowGlyphVertex {
                     offset: 12,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
+        }
+    }
+
+    pub fn instance_desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: (4 + 4) * 4,
+            step_mode: wgpu::InputStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: 16,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
             ],
         }

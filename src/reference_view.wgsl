@@ -75,13 +75,34 @@ struct ArrowsVertexInput {
     position: vec3<f32>;
     [[location(1)]]
     normal: vec3<f32>;
+    [[location(2)]]
+    ray_position: vec4<f32>;
+    [[location(3)]]
+    ray_direction: vec4<f32>;
 };
+
+let arrow_base_dir: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
 
 [[stage(vertex)]]
 fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
-    let position = 0.1 * input.position;
+    let rot_axis = cross(arrow_base_dir, input.ray_direction.xyz);
+    let rot_cos = dot(arrow_base_dir, input.ray_direction.xyz);
+    let rot_sin = sin(acos(rot_cos));
+    let rot_oc = 1.0 - rot_cos;
+    let rot = mat4x4<f32>(
+        vec4<f32>(rot_oc * rot_axis.x * rot_axis.x + rot_cos, rot_oc * rot_axis.x * rot_axis.y - rot_axis.z * rot_sin, rot_oc * rot_axis.z * rot_axis.x + rot_axis.y * rot_sin, 0.0),
+        vec4<f32>(rot_oc * rot_axis.x * rot_axis.y + rot_axis.z * rot_sin, rot_oc * rot_axis.y * rot_axis.y + rot_cos, rot_oc * rot_axis.y * rot_axis.z - rot_axis.x * rot_sin, 0.0),
+        vec4<f32>(rot_oc * rot_axis.z * rot_axis.x - rot_axis.y * rot_sin, rot_oc * rot_axis.y * rot_axis.z + rot_axis.x * rot_sin, rot_oc * rot_axis.z * rot_axis.z + rot_cos, 0.0),
+        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+    );
+
+    let scaled = 0.05 * vec4<f32>(input.position, 1.0);
+    let rotated = rot * scaled;
+    let translated = rotated + input.ray_position;
+    let position = translated.xyz;
+
     var output: VertexOutput;
-    output.clip_position = uniforms.view_projection * vec4<f32>(position, 1.0);
+    output.clip_position = uniforms.view_projection * vec4<f32>(position.xyz, 1.0);
     output.position = position;
     output.normal = input.normal;
     output.color = vec3<f32>(1.0, 1.0, 1.0);

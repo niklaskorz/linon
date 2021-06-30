@@ -1,13 +1,13 @@
 use cgmath::Vector3;
 
 pub fn normalize_vertices(vertices: &mut [f32]) {
-    let mut max: f32 = 1.0;
-    let mut min: f32 = -1.0;
-    for (i, x) in vertices.iter().enumerate() {
-        if i == 0 || *x > max {
+    let mut max = f32::MIN;
+    let mut min = f32::MAX;
+    for x in vertices.iter() {
+        if *x > max {
             max = *x;
         }
-        if i == 0 || *x < min {
+        if *x < min {
             min = *x;
         }
     }
