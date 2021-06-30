@@ -42,6 +42,17 @@ struct Faces {
 [[group(1), binding(1)]]
 var<storage> faces: [[access(read)]] Faces;
 
+struct RaySample {
+    position: vec4<f32>;
+    direction: vec4<f32>;
+};
+[[block]]
+struct RaySamples {
+    data: [[stride(32)]] array<RaySample, 1000>;
+};
+[[group(2), binding(0)]]
+var<storage> ray_samples: [[access(write)]] RaySamples;
+
 let backface_culling: bool = false;
 
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
@@ -225,6 +236,20 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let v = f32(gid.y) / (height - 1.0) *  viewport_height - 0.5 * viewport_height;
     let s = u * normalize(horizontal) + v * normalize(vertical) + focal_length * view_direction;
     let dir = normalize(s);
+
+    let x_step = size.x / 10;
+    let y_step = size.y / 10;
+    if (coords.x % x_step == 0 && coords.y % y_step == 0) {
+        var sample: RaySample;
+        sample.position = vec4<f32>(origin.xyz, 0.0);
+        sample.direction = vec4<f32>(dir, 0.0);
+        for (var i: i32 = 0; i < 10; i = i + 1) {
+            sample.position = sample.position + 0.1 * sample.direction;
+            let index = coords.x / x_step * 100 + coords.y / y_step * 10 + i;
+            ray_samples.data[index] = sample;
+        }
+    }
+
     if (linear_mode) {
         let color = ray_color(origin, dir, 100.0);
         textureStore(target, coords, color);

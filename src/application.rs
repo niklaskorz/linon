@@ -22,6 +22,7 @@ pub struct Application {
     vertices_buffer: wgpu::Buffer,
     faces_buffer: wgpu::Buffer,
     indices: u32,
+    ray_samples_buffer: wgpu::Buffer,
     // egui
     platform: egui_winit_platform::Platform,
     rpass: egui_wgpu_backend::RenderPass,
@@ -90,6 +91,13 @@ impl Application {
         });
         let center = get_center(&vertices);
 
+        let ray_samples_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("ray_samples_buffer"),
+            size: 4 * 8 * 10 * 10 * 10,
+            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
+            mapped_at_creation: false,
+        });
+
         let platform =
             egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
                 physical_width: size.width,
@@ -106,6 +114,7 @@ impl Application {
             vertices_buffer.as_entire_binding(),
             faces_buffer.as_entire_binding(),
             center,
+            ray_samples_buffer.as_entire_binding(),
             size.width - INITIAL_SIDEBAR_WIDTH as u32,
             size.height,
         );
@@ -130,6 +139,7 @@ impl Application {
             vertices_buffer,
             faces_buffer,
             indices: indices.len() as u32,
+            ray_samples_buffer,
             // egui
             platform,
             rpass,
@@ -351,7 +361,12 @@ impl Application {
                 encoder.pop_debug_group();
             }
             encoder.push_debug_group("render reference view");
-            self.reference_view.render(&mut encoder, self.indices);
+            self.reference_view.render(
+                &mut encoder,
+                self.indices,
+                self.ray_samples_buffer.slice(..),
+                10 * 10 * 10,
+            );
             encoder.pop_debug_group();
             self.queue.submit(Some(encoder.finish()));
         }

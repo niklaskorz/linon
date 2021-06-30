@@ -56,6 +56,7 @@ pub struct MainView {
     compute_pipeline: wgpu::ComputePipeline,
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
+    ray_samples_bind_group: wgpu::BindGroup,
     settings_buffer: wgpu::Buffer,
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
@@ -71,6 +72,7 @@ impl MainView {
         vertices_buffer_binding: wgpu::BindingResource,
         faces_buffer_binding: wgpu::BindingResource,
         center: Vector3<f32>,
+        ray_samples_buffer_binding: wgpu::BindingResource,
         width: u32,
         height: u32,
     ) -> Self {
@@ -204,10 +206,36 @@ impl MainView {
             ],
             label: Some("mesh_bind_group"),
         });
+        let ray_samples_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStage::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("ray_samples_bind_group_layout"),
+            });
+        let ray_samples_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &ray_samples_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: ray_samples_buffer_binding,
+            }],
+            label: Some("ray_samples_bind_group"),
+        });
         let compute_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("compute_pipeline_layout"),
-                bind_group_layouts: &[&compute_bind_group_layout, &mesh_bind_group_layout],
+                bind_group_layouts: &[
+                    &compute_bind_group_layout,
+                    &mesh_bind_group_layout,
+                    &ray_samples_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
         let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -228,6 +256,7 @@ impl MainView {
             compute_pipeline,
             mesh_bind_group_layout,
             mesh_bind_group,
+            ray_samples_bind_group,
             settings_buffer,
 
             camera_buffer,
@@ -452,6 +481,7 @@ impl MainView {
         cpass.set_pipeline(&self.compute_pipeline);
         cpass.set_bind_group(0, &self.compute_bind_group, &[]);
         cpass.set_bind_group(1, &self.mesh_bind_group, &[]);
+        cpass.set_bind_group(2, &self.ray_samples_bind_group, &[]);
         let (width, height) = self.texture.dimensions;
         cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
         self.needs_redraw = false;

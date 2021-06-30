@@ -34,8 +34,6 @@ pub struct ReferenceView {
     uniform_bind_group: wgpu::BindGroup,
     mesh_bind_group: wgpu::BindGroup,
 
-    instance_buffer: wgpu::Buffer,
-
     arrow_vertex_buffer: wgpu::Buffer,
     arrow_vertex_count: u32,
     arrow_render_pipeline: wgpu::RenderPipeline,
@@ -200,13 +198,6 @@ impl ReferenceView {
             multisample: wgpu::MultisampleState::default(),
         });
 
-        let instances: [f32; 8] = [-0.5, 0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0];
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("instance_buffer"),
-            contents: bytemuck::cast_slice(&instances),
-            usage: wgpu::BufferUsage::VERTEX,
-        });
-
         let arrow_glyph = create_allow_glyph();
         let arrow_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("arrow_vertex_buffer"),
@@ -273,8 +264,6 @@ impl ReferenceView {
             arrow_vertex_buffer,
             arrow_vertex_count: arrow_glyph.len() as u32,
             arrow_render_pipeline,
-
-            instance_buffer,
 
             needs_redraw: true,
         }
@@ -369,7 +358,13 @@ impl ReferenceView {
         }
     }
 
-    pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder, indices: u32) {
+    pub fn render(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        indices: u32,
+        instance_buffer_slice: wgpu::BufferSlice,
+        instances: u32,
+    ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("rpass"),
             color_attachments: &[wgpu::RenderPassColorAttachment {
@@ -403,7 +398,7 @@ impl ReferenceView {
         rpass.set_pipeline(&self.arrow_render_pipeline);
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
         rpass.set_vertex_buffer(0, self.arrow_vertex_buffer.slice(..));
-        rpass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        rpass.draw(0..self.arrow_vertex_count, 0..1);
+        rpass.set_vertex_buffer(1, instance_buffer_slice);
+        rpass.draw(0..self.arrow_vertex_count, 0..instances);
     }
 }

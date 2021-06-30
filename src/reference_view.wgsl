@@ -85,8 +85,8 @@ let arrow_base_dir: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
 
 [[stage(vertex)]]
 fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
-    let rot_axis = cross(arrow_base_dir, input.ray_direction.xyz);
-    let rot_cos = dot(arrow_base_dir, input.ray_direction.xyz);
+    let rot_axis = cross(arrow_base_dir, -input.ray_direction.xyz);
+    let rot_cos = dot(arrow_base_dir, -input.ray_direction.xyz);
     let rot_sin = sin(acos(rot_cos));
     let rot_oc = 1.0 - rot_cos;
     let rot = mat4x4<f32>(

@@ -1,10 +1,10 @@
 use cgmath::{InnerSpace, Vector3};
 
-// 10x10 grid with 100 samples per point
+// 10x10 grid with 10 samples per point
 // Attributes:
 // position: vec4<f32>
 // direction: vec4<f32>
-pub type RaySamples = [f32; 8 * 10 * 10 * 100];
+// pub type RaySamples = [f32; 8 * 10 * 10 * 10];
 
 #[rustfmt::skip]
 const ARROW_GLYPH_VERTICES: [f32; 15] = [
