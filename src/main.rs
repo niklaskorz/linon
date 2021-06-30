@@ -13,8 +13,8 @@ use application::Application;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
+use winit::dpi::LogicalSize;
 use winit::{
-    dpi::PhysicalSize,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
@@ -120,7 +120,7 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("linon")
-        .with_inner_size(PhysicalSize {
+        .with_inner_size(LogicalSize {
             width: 1280,
             height: 720,
         })
