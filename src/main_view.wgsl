@@ -162,7 +162,10 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
         let ambient = ambient_strength * light_color;
         // The camera is the light source here, which allows for
         // some simplifications
-        let intensity = max(dot(normal, -direction), 0.0);
+        var intensity: f32 = max(dot(normal, -direction), 0.0);
+        if (intensity == 0.0) {
+            intensity = max(dot(-normal, -direction), 0.0);
+        }
         let diff = intensity;
         let diffuse = diff * light_color;
         let spec = pow(intensity, shininess);

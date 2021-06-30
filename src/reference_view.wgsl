@@ -129,7 +129,10 @@ fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
     // The camera is the light source here, which allows for
     // some simplifications
     let direction = normalize(input.position - uniforms.camera_pos.xyz);
-    let intensity = max(dot(input.normal, -direction), 0.0);
+    var intensity: f32 = max(dot(input.normal, -direction), 0.0);
+    if (intensity == 0.0) {
+        intensity = max(dot(-input.normal, -direction), 0.0);
+    }
     let diff = intensity;
     let diffuse = diff * light_color;
     let spec = pow(intensity, shininess);
