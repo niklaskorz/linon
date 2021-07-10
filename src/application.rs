@@ -93,7 +93,7 @@ impl Application {
 
         let ray_samples_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ray_samples_buffer"),
-            size: 4 * 8 * 36 * 30,
+            size: std::mem::size_of::<[[[[f32; 4]; 3]; 30]; 36]>() as u64,
             usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
             mapped_at_creation: false,
         });
@@ -365,7 +365,7 @@ impl Application {
                 &mut encoder,
                 self.indices,
                 self.ray_samples_buffer.slice(..),
-                10 * 10 * 10,
+                36 * 30,
             );
             encoder.pop_debug_group();
             self.queue.submit(Some(encoder.finish()));

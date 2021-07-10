@@ -221,7 +221,7 @@ impl ReferenceView {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "main",
+                    entry_point: "flat_main",
                     targets: &[wgpu::ColorTargetState {
                         format: texture.format,
                         blend: Some(wgpu::BlendState {

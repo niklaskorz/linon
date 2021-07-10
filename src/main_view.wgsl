@@ -45,10 +45,11 @@ var<storage> faces: [[access(read)]] Faces;
 struct RaySample {
     position: vec4<f32>;
     direction: vec4<f32>;
+    color: vec4<f32>;
 };
 [[block]]
 struct RaySamples {
-    data: [[stride(32)]] array<RaySample, 1080>;
+    data: [[stride(48)]] array<RaySample, 1080>;
 };
 [[group(2), binding(0)]]
 var<storage> ray_samples: [[access(write)]] RaySamples;
@@ -207,6 +208,8 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_ind
 
             sample.position = vec4<f32>(cur_point, 0.0);
             sample.direction = vec4<f32>(unit_dir, 0.0);
+            let c = f32(samples_index) / 36.0;
+            sample.color = vec4<f32>(c, c, c, 1.0);
             let index = samples_index * sample_steps + i / sample_step_size;
             ray_samples.data[index] = sample;
         }
@@ -264,27 +267,20 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let s = u * normalize(horizontal) + v * normalize(vertical) + focal_length * view_direction;
     let dir = normalize(s);
 
-    let x_step = size.x / 10;
-    let y_step = size.y / 10;
+    let x_step = (size.x + 9) / 10;
+    let y_step = (size.y + 9) / 10;
     var samples_index: i32 = -1;
     if (coords.x % x_step == 0 && coords.y % y_step == 0) {
         let x = coords.x / x_step;
         let y = coords.y / y_step;
-        if ((x == 0 || x == 9) && (y == 0 || y == 9)) {
-            // Corners
-            samples_index = x / 9 + 2 * y / 9;
-        } elseif (x == 0) {
-            // Left edge
-            samples_index = 4 + y - 1;
-        } elseif (y == 0) {
-            // Top edge
-            samples_index = 12 + x - 1;
-        } elseif (x == 9) {
-            // Right edge
-            samples_index = 20 + y - 1;
+        if (y == 0) {
+            samples_index = x;
         } elseif (y == 9) {
-            // Bottom edge
-            samples_index = 28 + x - 1;
+            samples_index = 10 + x;
+        } elseif (x == 0) {
+            samples_index = 20 + (y - 1);
+        } elseif (x == 9) {
+            samples_index = 28 + (y - 1);
         }
     }
 

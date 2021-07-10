@@ -79,6 +79,8 @@ struct ArrowsVertexInput {
     ray_position: vec4<f32>;
     [[location(3)]]
     ray_direction: vec4<f32>;
+    [[location(4)]]
+    color: vec4<f32>;
 };
 
 let arrow_base_dir: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
@@ -87,7 +89,7 @@ let arrow_base_dir: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
 fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
     var output: VertexOutput;
     if (input.ray_position.w < 0.0) {
-        output.clip_position = uniforms.view_projection * vec4<f32>(0.0, 0.0, 0.0, -10000.0);
+        output.clip_position = vec4<f32>(-10.0, -10.0, -10.0, 0.0);
         return output;
     }
 
@@ -110,7 +112,7 @@ fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
     output.clip_position = uniforms.view_projection * vec4<f32>(position.xyz, 1.0);
     output.position = position;
     output.normal = input.normal;
-    output.color = vec3<f32>(1.0, 1.0, 1.0);
+    output.color = input.color.xyz;
     return output;
 }
 
@@ -118,13 +120,9 @@ let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
-let use_lighting: bool = true;
 
 [[stage(fragment)]]
 fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
-    if (!use_lighting) {
-        return vec4<f32>(input.normal, 1.0);
-    }
     let ambient = ambient_strength * light_color;
     // The camera is the light source here, which allows for
     // some simplifications
@@ -139,4 +137,9 @@ fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
     let specular = spec * light_color;
     let result = (ambient + diffuse + specular) * input.color;
     return vec4<f32>(result, 1.0);
+}
+
+[[stage(fragment)]]
+fn flat_main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
+    return vec4<f32>(input.color, 1.0);
 }
