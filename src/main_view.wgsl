@@ -48,7 +48,7 @@ struct RaySample {
 };
 [[block]]
 struct RaySamples {
-    data: [[stride(32)]] array<RaySample, 1000>;
+    data: [[stride(32)]] array<RaySample, 1080>;
 };
 [[group(2), binding(0)]]
 var<storage> ray_samples: [[access(write)]] RaySamples;
@@ -176,16 +176,16 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, sample_coords: vec2<i32>) -> vec4<f32> {
+fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32) -> vec4<f32> {
     let h = 0.25;
-    let steps = 50;
+    let steps = 120;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
 
-    let add_samples = sample_coords.x >= 0 && sample_coords.y >= 0;
+    let add_samples = samples_index >= 0;
     var sample: RaySample;
-    let sample_steps = 10;
+    let sample_steps = 30;
     let sample_step_size = steps / sample_steps;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
@@ -207,7 +207,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, sample_coor
 
             sample.position = vec4<f32>(cur_point, 0.0);
             sample.direction = vec4<f32>(unit_dir, 0.0);
-            let index = sample_coords.x * 100 + sample_coords.y * 10 + i / sample_step_size;
+            let index = samples_index * sample_steps + i / sample_step_size;
             ray_samples.data[index] = sample;
         }
 
@@ -215,12 +215,14 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, sample_coor
             cur_point = cur_point + color.a * unit_dir;
             color.a = 1.0;
 
-            // Remove sample points from previous iterations
-            sample.position = vec4<f32>(0.0, 0.0, 0.0, -1.0);
-            sample.direction = vec4<f32>(0.0, 0.0, 0.0, -1.0);
-            for (var j: i32 = (i / sample_step_size) + 1; j < sample_steps; j = j + 1) {
-                let index = sample_coords.x * 100 + sample_coords.y * 10 + j;
-                ray_samples.data[index] = sample;
+            // Remove sample points from previous executions
+            if (add_samples) {
+                sample.position = vec4<f32>(0.0, 0.0, 0.0, -1.0);
+                sample.direction = vec4<f32>(0.0, 0.0, 0.0, -1.0);
+                for (var j: i32 = (i / sample_step_size) + 1; j < sample_steps; j = j + 1) {
+                    let index = samples_index * sample_steps + j;
+                    ray_samples.data[index] = sample;
+                }
             }
 
             return color;
@@ -264,17 +266,33 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
 
     let x_step = size.x / 10;
     let y_step = size.y / 10;
-    var sample_coords: vec2<i32> = vec2<i32>(-1, -1);
+    var samples_index: i32 = -1;
     if (coords.x % x_step == 0 && coords.y % y_step == 0) {
-        sample_coords.x = coords.x / x_step;
-        sample_coords.y = coords.y / y_step;
+        let x = coords.x / x_step;
+        let y = coords.y / y_step;
+        if ((x == 0 || x == 9) && (y == 0 || y == 9)) {
+            // Corners
+            samples_index = x / 9 + 2 * y / 9;
+        } elseif (x == 0) {
+            // Left edge
+            samples_index = 4 + y - 1;
+        } elseif (y == 0) {
+            // Top edge
+            samples_index = 12 + x - 1;
+        } elseif (x == 9) {
+            // Right edge
+            samples_index = 20 + y - 1;
+        } elseif (y == 9) {
+            // Bottom edge
+            samples_index = 28 + x - 1;
+        }
     }
 
     if (linear_mode) {
         let color = ray_color(origin, dir, 100.0);
         textureStore(target, coords, color);
     } else {
-        let color = nonlinear_ray_color(origin, dir, sample_coords);
+        let color = nonlinear_ray_color(origin, dir, samples_index);
         textureStore(target, coords, color);
     }
 }

@@ -93,7 +93,7 @@ impl Application {
 
         let ray_samples_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ray_samples_buffer"),
-            size: 4 * 8 * 10 * 10 * 10,
+            size: 4 * 8 * 36 * 30,
             usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
             mapped_at_creation: false,
         });
