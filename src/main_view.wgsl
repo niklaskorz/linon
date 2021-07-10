@@ -177,15 +177,16 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32) -> vec4<f32> {
+fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec4<f32>) -> vec4<f32> {
     let h = 0.25;
-    let steps = 120;
+    let steps = 60;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
 
     let add_samples = samples_index >= 0;
     var sample: RaySample;
+    sample.color = sample_color;
     let sample_steps = 30;
     let sample_step_size = steps / sample_steps;
 
@@ -208,8 +209,6 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_ind
 
             sample.position = vec4<f32>(cur_point, 0.0);
             sample.direction = vec4<f32>(unit_dir, 0.0);
-            let c = f32(samples_index) / 36.0;
-            sample.color = vec4<f32>(c, c, c, 1.0);
             let index = samples_index * sample_steps + i / sample_step_size;
             ray_samples.data[index] = sample;
         }
@@ -270,17 +269,30 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let x_step = (size.x + 9) / 10;
     let y_step = (size.y + 9) / 10;
     var samples_index: i32 = -1;
+    var sample_color: vec4<f32>;
     if (coords.x % x_step == 0 && coords.y % y_step == 0) {
         let x = coords.x / x_step;
         let y = coords.y / y_step;
         if (y == 0) {
+            // Top edge
             samples_index = x;
+            sample_color = vec4<f32>(1.0, 0.1, 0.1, 1.0);
         } elseif (y == 9) {
+            // Bottom edge
             samples_index = 10 + x;
+            sample_color = vec4<f32>(1.0, 0.1, 0.1, 1.0);
         } elseif (x == 0) {
+            // Left edge
             samples_index = 20 + (y - 1);
+            sample_color = vec4<f32>(0.1, 0.1, 1.0, 1.0);
         } elseif (x == 9) {
+            // Right edge
             samples_index = 28 + (y - 1);
+            sample_color = vec4<f32>(0.1, 0.1, 1.0, 1.0);
+        }
+        if ((x == 0 || x == 9) && (y == 0 || y == 9)) {
+            // Corners
+            sample_color = vec4<f32>(0.1, 1.0, 0.1, 1.0);
         }
     }
 
@@ -288,7 +300,7 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         let color = ray_color(origin, dir, 100.0);
         textureStore(target, coords, color);
     } else {
-        let color = nonlinear_ray_color(origin, dir, samples_index);
+        let color = nonlinear_ray_color(origin, dir, samples_index, sample_color);
         textureStore(target, coords, color);
     }
 }
