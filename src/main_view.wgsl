@@ -178,8 +178,9 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
 }
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec4<f32>) -> vec4<f32> {
-    let h = 0.25;
-    let steps = 60;
+    let h = 0.001;
+    let field_weight = settings.field_weight / (h * 1000.0);
+    let steps = 180;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -197,7 +198,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>, samples_ind
         let k3 = field_function(cur_point + 0.5 * h * k2, 0.5 * h * k2);
         let k4 = field_function(cur_point + h * k3, h * k3);
         let new_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
-        cur_dir = (1.0 - settings.field_weight) * cur_dir + settings.field_weight * new_dir;
+        cur_dir = (1.0 - settings.field_weight) * cur_dir + field_weight * new_dir;
 
         let unit_dir = normalize(cur_dir);
         color = ray_color(cur_point, unit_dir, length(cur_dir));
