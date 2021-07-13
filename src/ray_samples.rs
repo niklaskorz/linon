@@ -1,132 +1,49 @@
-use cgmath::{InnerSpace, Vector3};
-
-// edges of 10x10 grid (4*8 + 4 = 36) with 30 samples per point
+// edges of 3x3 grid (8 elements) with 100 samples per point
 // Attributes:
 // position: vec4<f32>
-// direction: vec4<f32>
 // color: vec4<f32>
-// pub type RaySamples = [f32; 12 * 36 * 30];
+// pub type RaySamples = [f32; 8 * 8 * 100];
+const SAMPLES_PER_POINT: u16 = 100;
 
-#[rustfmt::skip]
-const ARROW_GLYPH_VERTICES: [f32; 15] = [
-    -0.25, 0.0, -0.25,
-    0.25, 0.0, -0.25,
-    0.25, 0.0, 0.25,
-    -0.25, 0.0, 0.25,
-    0.0, 1.0, 0.0,
-];
-
-#[rustfmt::skip]
-const ARROW_GLYPH_INDICES: [usize; 18] = [
-    // Square base
-    0, 1, 2,
-    2, 3, 0,
-    // Triangle 1
-    1, 0, 4,
-    // Triangle 2
-    2, 1, 4,
-    // Triangle 3
-    3, 2, 4,
-    // Triangle 4
-    0, 3, 4,
-];
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ArrowGlyphVertex {
-    position: [f32; 3],
-    normal: [f32; 3],
-}
-
-impl ArrowGlyphVertex {
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<ArrowGlyphVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: 12,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-
-    pub fn instance_desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: 48,
-            step_mode: wgpu::InputStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: 16,
-                    shader_location: 3,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: 32,
-                    shader_location: 4,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-            ],
-        }
+pub fn vertex_desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+    wgpu::VertexBufferLayout {
+        array_stride: 32,
+        step_mode: wgpu::InputStepMode::Vertex,
+        attributes: &[
+            // position: vec4<f32>
+            wgpu::VertexAttribute {
+                offset: 0,
+                shader_location: 0,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+            // color: vec4<f32>
+            wgpu::VertexAttribute {
+                offset: 16,
+                shader_location: 1,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+        ],
     }
 }
 
-pub fn create_allow_glyph() -> Vec<ArrowGlyphVertex> {
-    let vertices = ARROW_GLYPH_VERTICES;
-    let indices = ARROW_GLYPH_INDICES;
-    let mut glyph: Vec<ArrowGlyphVertex> = vec![];
+fn push_indices_for_side(result: &mut Vec<[u16; 3]>, a: u16, b: u16, c: u16) {
+    for i in 0..(SAMPLES_PER_POINT - 1) {
+        let a = a * SAMPLES_PER_POINT + i;
+        let b = b * SAMPLES_PER_POINT + i;
+        let c = c * SAMPLES_PER_POINT + i;
 
-    let num_faces = indices.len() / 3;
-    for i in 0..num_faces {
-        let a_index = indices[i * 3];
-        let a_vertex = a_index * 3;
-        let a = Vector3::new(
-            vertices[a_vertex],
-            vertices[a_vertex + 1],
-            vertices[a_vertex + 2],
-        );
-        let b_index = indices[i * 3 + 1];
-        let b_vertex = b_index * 3;
-        let b = Vector3::new(
-            vertices[b_vertex],
-            vertices[b_vertex + 1],
-            vertices[b_vertex + 2],
-        );
-        let c_index = indices[i * 3 + 2];
-        let c_vertex = c_index * 3;
-        let c = Vector3::new(
-            vertices[c_vertex],
-            vertices[c_vertex + 1],
-            vertices[c_vertex + 2],
-        );
-        let d1 = b - a;
-        let d2 = c - a;
-        let normal = d1.cross(d2).normalize();
-        glyph.push(ArrowGlyphVertex {
-            position: a.into(),
-            normal: normal.into(),
-        });
-        glyph.push(ArrowGlyphVertex {
-            position: b.into(),
-            normal: normal.into(),
-        });
-        glyph.push(ArrowGlyphVertex {
-            position: c.into(),
-            normal: normal.into(),
-        });
+        result.push([a, b + 1, a + 1]);
+        result.push([a, b, b + 1]);
+        result.push([b, c, b + 1]);
+        result.push([c, c + 1, b + 1]);
     }
+}
 
-    glyph
+pub fn create_indices() -> Vec<[u16; 3]> {
+    let mut result: Vec<[u16; 3]> = vec![];
+    push_indices_for_side(&mut result, 0, 1, 2);
+    push_indices_for_side(&mut result, 2, 3, 4);
+    push_indices_for_side(&mut result, 4, 5, 6);
+    push_indices_for_side(&mut result, 6, 7, 0);
+    result
 }

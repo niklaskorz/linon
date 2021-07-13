@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::{
     application::INITIAL_SIDEBAR_WIDTH,
     arcball::{ArcballCamera, CameraOperation},
-    ray_samples::{create_allow_glyph, ArrowGlyphVertex},
+    ray_samples::{create_indices, vertex_desc},
     texture::{DepthTexture, Texture},
 };
 use std::borrow::Cow;
@@ -34,9 +34,9 @@ pub struct ReferenceView {
     uniform_bind_group: wgpu::BindGroup,
     mesh_bind_group: wgpu::BindGroup,
 
-    arrow_vertex_buffer: wgpu::Buffer,
-    arrow_vertex_count: u32,
-    arrow_render_pipeline: wgpu::RenderPipeline,
+    sample_index_buffer: wgpu::Buffer,
+    sample_num_indices: u32,
+    sample_render_pipeline: wgpu::RenderPipeline,
 
     prev_pointer_pos: Option<(f32, f32)>,
     pub needs_redraw: bool,
@@ -198,35 +198,44 @@ impl ReferenceView {
             multisample: wgpu::MultisampleState::default(),
         });
 
-        let arrow_glyph = create_allow_glyph();
-        let arrow_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("arrow_vertex_buffer"),
-            contents: bytemuck::cast_slice(&arrow_glyph),
-            usage: wgpu::BufferUsage::VERTEX,
+        let sample_indices = create_indices();
+        let sample_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("sample_index_buffer"),
+            contents: bytemuck::cast_slice(&sample_indices),
+            usage: wgpu::BufferUsage::INDEX,
         });
-        let arrow_render_pipeline_layout =
+
+        let sample_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("arrow_render_pipeline_layout"),
+                label: Some("sample_render_pipeline_layout"),
                 bind_group_layouts: &[&uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });
-        let arrow_render_pipeline =
+        let sample_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("arrow_render_pipeline"),
-                layout: Some(&arrow_render_pipeline_layout),
+                label: Some("sample_render_pipeline"),
+                layout: Some(&sample_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: "arrows_main",
-                    buffers: &[ArrowGlyphVertex::desc(), ArrowGlyphVertex::instance_desc()],
+                    entry_point: "sample_main",
+                    buffers: &[vertex_desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "flat_main",
+                    entry_point: "sample_main",
                     targets: &[wgpu::ColorTargetState {
                         format: texture.format,
                         blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
+                            color: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::SrcAlpha,
+                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                operation: wgpu::BlendOperation::Add,
+                            },
+                            alpha: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::One,
+                                dst_factor: wgpu::BlendFactor::One,
+                                operation: wgpu::BlendOperation::Max,
+                            },
                         }),
                         write_mask: wgpu::ColorWrite::ALL,
                     }],
@@ -236,7 +245,7 @@ impl ReferenceView {
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Cw,
                     cull_mode: None,
-                    polygon_mode: wgpu::PolygonMode::Fill,
+                    polygon_mode: wgpu::PolygonMode::Line,
                     clamp_depth: false,
                     conservative: false,
                 },
@@ -261,9 +270,9 @@ impl ReferenceView {
             mesh_bind_group,
             prev_pointer_pos: None,
 
-            arrow_vertex_buffer,
-            arrow_vertex_count: arrow_glyph.len() as u32,
-            arrow_render_pipeline,
+            sample_index_buffer,
+            sample_num_indices: sample_indices.len() as u32 * 3,
+            sample_render_pipeline,
 
             needs_redraw: true,
         }
@@ -362,8 +371,7 @@ impl ReferenceView {
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         indices: u32,
-        instance_buffer_slice: wgpu::BufferSlice,
-        instances: u32,
+        vertex_buffer_slice: wgpu::BufferSlice,
     ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("rpass"),
@@ -395,10 +403,13 @@ impl ReferenceView {
         rpass.set_bind_group(1, &self.mesh_bind_group, &[]);
         rpass.draw(0..indices, 0..1);
 
-        rpass.set_pipeline(&self.arrow_render_pipeline);
+        rpass.set_pipeline(&self.sample_render_pipeline);
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
-        rpass.set_vertex_buffer(0, self.arrow_vertex_buffer.slice(..));
-        rpass.set_vertex_buffer(1, instance_buffer_slice);
-        rpass.draw(0..self.arrow_vertex_count, 0..instances);
+        rpass.set_vertex_buffer(0, vertex_buffer_slice);
+        rpass.set_index_buffer(
+            self.sample_index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        rpass.draw_indexed(0..self.sample_num_indices, 0, 0..1);
     }
 }

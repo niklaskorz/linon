@@ -70,52 +70,6 @@ fn main(input: VertexInput) -> VertexOutput {
     return output;
 }
 
-struct ArrowsVertexInput {
-    [[location(0)]]
-    position: vec3<f32>;
-    [[location(1)]]
-    normal: vec3<f32>;
-    [[location(2)]]
-    ray_position: vec4<f32>;
-    [[location(3)]]
-    ray_direction: vec4<f32>;
-    [[location(4)]]
-    color: vec4<f32>;
-};
-
-let arrow_base_dir: vec3<f32> = vec3<f32>(0.0, 1.0, 0.0);
-
-[[stage(vertex)]]
-fn arrows_main(input: ArrowsVertexInput) -> VertexOutput {
-    var output: VertexOutput;
-    if (input.ray_position.w < 0.0) {
-        output.clip_position = vec4<f32>(-10.0, -10.0, -10.0, 0.0);
-        return output;
-    }
-
-    let rot_axis = cross(arrow_base_dir, -input.ray_direction.xyz);
-    let rot_cos = dot(arrow_base_dir, -input.ray_direction.xyz);
-    let rot_sin = sin(acos(rot_cos));
-    let rot_oc = 1.0 - rot_cos;
-    let rot = mat4x4<f32>(
-        vec4<f32>(rot_oc * rot_axis.x * rot_axis.x + rot_cos, rot_oc * rot_axis.x * rot_axis.y - rot_axis.z * rot_sin, rot_oc * rot_axis.z * rot_axis.x + rot_axis.y * rot_sin, 0.0),
-        vec4<f32>(rot_oc * rot_axis.x * rot_axis.y + rot_axis.z * rot_sin, rot_oc * rot_axis.y * rot_axis.y + rot_cos, rot_oc * rot_axis.y * rot_axis.z - rot_axis.x * rot_sin, 0.0),
-        vec4<f32>(rot_oc * rot_axis.z * rot_axis.x - rot_axis.y * rot_sin, rot_oc * rot_axis.y * rot_axis.z + rot_axis.x * rot_sin, rot_oc * rot_axis.z * rot_axis.z + rot_cos, 0.0),
-        vec4<f32>(0.0, 0.0, 0.0, 1.0),
-    );
-
-    let scaled = 0.05 * vec4<f32>(input.position, 1.0);
-    let rotated = rot * scaled;
-    let translated = rotated + input.ray_position;
-    let position = translated.xyz;
-
-    output.clip_position = uniforms.view_projection * vec4<f32>(position.xyz, 1.0);
-    output.position = position;
-    output.normal = input.normal;
-    output.color = input.color.xyz;
-    return output;
-}
-
 let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
 let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
@@ -139,7 +93,28 @@ fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
     return vec4<f32>(result, 1.0);
 }
 
+struct SampleVertexInput {
+    [[location(0)]]
+    position: vec4<f32>;
+    [[location(1)]]
+    color: vec4<f32>;
+};
+struct SampleVertexOutput {
+    [[builtin(position)]]
+    clip_position: vec4<f32>;  
+    [[location(0)]]
+    color: vec4<f32>;
+};
+
+[[stage(vertex)]]
+fn sample_main(input: SampleVertexInput) -> SampleVertexOutput {
+    var output: SampleVertexOutput;
+    output.clip_position = uniforms.view_projection * input.position;
+    output.color = input.color;
+    return output;
+}
+
 [[stage(fragment)]]
-fn flat_main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
-    return vec4<f32>(input.color, 1.0);
+fn sample_main(input: SampleVertexOutput) -> [[location(0)]] vec4<f32> {
+    return input.color;
 }
