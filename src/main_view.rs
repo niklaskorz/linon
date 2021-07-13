@@ -29,7 +29,7 @@ impl CameraUniform {
         }
     }
 
-    fn stationary(camera: &ArcballCamera<f32>) -> CameraUniform {
+    fn _stationary(camera: &ArcballCamera<f32>) -> CameraUniform {
         CameraUniform {
             origin: [0.0, 0.0, 0.0, 0.0],
             view_direction: [0.0, 0.0, -1.0, 0.0],
@@ -62,7 +62,6 @@ pub struct MainView {
     camera: ArcballCamera<f32>,
     prev_pointer_pos: Option<(f32, f32)>,
     pub needs_redraw: bool,
-    pub rotate_scene: bool,
 }
 
 impl MainView {
@@ -263,7 +262,6 @@ impl MainView {
             camera,
             prev_pointer_pos: None,
             needs_redraw: true,
-            rotate_scene: false,
         }
     }
 
@@ -298,11 +296,7 @@ impl MainView {
     }
 
     pub fn update_camera(&mut self, queue: &wgpu::Queue) {
-        let uniform = if self.rotate_scene {
-            CameraUniform::stationary(&self.camera)
-        } else {
-            CameraUniform::moving(&self.camera)
-        };
+        let uniform = CameraUniform::moving(&self.camera);
         queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[uniform]));
         self.needs_redraw = true;
     }

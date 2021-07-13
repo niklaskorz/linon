@@ -142,9 +142,9 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
         let b = vertices.data[face.b];
         let c = vertices.data[face.c];
         let triangle = array<vec3<f32>, 3>(
-            (camera.view_matrix * vec4<f32>(a.x, a.y, a.z, 1.0)).xyz,
-            (camera.view_matrix * vec4<f32>(b.x, b.y, b.z, 1.0)).xyz,
-            (camera.view_matrix * vec4<f32>(c.x, c.y, c.z, 1.0)).xyz,
+            vec3<f32>(a.x, a.y, a.z),
+            vec3<f32>(b.x, b.y, b.z),
+            vec3<f32>(c.x, c.y, c.z),
         );
         t_new = hit_triangle(triangle, origin, direction);
         if (t_new > 0.0 && t_new < max_dist && (t < 0.0 || t_new < t)) {

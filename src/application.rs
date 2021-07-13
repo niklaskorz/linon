@@ -30,7 +30,6 @@ pub struct Application {
     previous_frame_time: Option<f32>,
     // gui state
     shader_error: Option<String>,
-    rotate_scene: bool,
     field_weight: f32,
     predefined_function: PredefinedFunction,
     field_function: String,
@@ -147,7 +146,6 @@ impl Application {
             previous_frame_time: None,
             // gui state
             shader_error: None,
-            rotate_scene: false,
             field_weight: 0.001,
             predefined_function: PredefinedFunction::TranslationX,
             field_function: PredefinedFunction::TranslationX.to_code(),
@@ -214,7 +212,6 @@ impl Application {
             reference_view,
             rpass,
             shader_error,
-            rotate_scene,
             field_weight,
             field_function,
             predefined_function,
@@ -224,13 +221,6 @@ impl Application {
         let device = &self.device;
         let queue = &self.queue;
         egui::SidePanel::left("Settings", INITIAL_SIDEBAR_WIDTH).show(ctx, |ui| {
-            if ui
-                .checkbox(rotate_scene, "Rotate scene instead of camera")
-                .changed()
-            {
-                main_view.rotate_scene = *rotate_scene;
-                main_view.update_camera(queue);
-            }
             ui.horizontal(|ui| {
                 ui.label("Field weight:");
                 if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
