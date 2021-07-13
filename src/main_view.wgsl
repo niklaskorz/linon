@@ -176,11 +176,23 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.0001;
+fn bezier(t: f32, p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>) -> vec2<f32> {
+    return pow(1.0 - t, 3.0) * p0 + 3.0 * pow(1.0 - t, 2.0) * t * p1 + 3.0 * (1.0 - t) * pow(t, 2.0) * p2 + pow(t, 3.0) * p3;
+}
+
+fn ease(t: f32) -> vec2<f32> {
+    return bezier(t, vec2<f32>(0.0, 0.0), vec2<f32>(0.25, 0.1), vec2<f32>(0.25, 1.0), vec2<f32>(1.0, 1.0));
+}
+
+fn get_field_weight() -> f32 {
+    return ease(settings.field_weight).y;
+}
+
+let h: f32 = 0.001;
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
-    let field_weight = settings.field_weight / (h * 10.0);
-    let steps = 100;
+    let field_weight = get_field_weight();
+    let steps = 500;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -192,7 +204,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
         let k3 = field_function(cur_point + 0.5 * h * k2, 0.5 * h * k2);
         let k4 = field_function(cur_point + h * k3, h * k3);
         let new_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
-        cur_dir = (1.0 - settings.field_weight) * cur_dir + field_weight * new_dir;
+        cur_dir = (1.0 - field_weight) * cur_dir + field_weight * new_dir;
 
         let unit_dir = normalize(cur_dir);
         color = ray_color(cur_point, unit_dir, length(cur_dir));
@@ -210,8 +222,8 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
 }
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
-    let field_weight = settings.field_weight / (h * 10.0);
-    let steps = 100;
+    let field_weight = get_field_weight();
+    let steps = 500;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -228,7 +240,7 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
         let k3 = field_function(cur_point + 0.5 * h * k2, 0.5 * h * k2);
         let k4 = field_function(cur_point + h * k3, h * k3);
         let new_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
-        cur_dir = (1.0 - settings.field_weight) * cur_dir + field_weight * new_dir;
+        cur_dir = (1.0 - field_weight) * cur_dir + field_weight * new_dir;
 
         let unit_dir = normalize(cur_dir);
 
