@@ -484,11 +484,11 @@ impl MainView {
 
 fn with_field_function(shader_src: &str, field_function_body: &str) -> String {
     let field_function = format!(
-        "fn field_function(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {{\n{}\n}}",
+        "fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {{\n{}\n}}",
         field_function_body,
     );
     shader_src.replace(
-        "fn field_function(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> { return v; }",
+        "fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }",
         &field_function,
     )
 }

@@ -25,17 +25,17 @@ impl PredefinedFunction {
     pub fn to_code(&self) -> String {
         match self {
             Self::Custom => "".to_string(),
-            Self::TranslationX => "let dx = 0.1;
+            Self::TranslationX => "let dx = 0.5 * t;
 let dy = 0.0;
 let dz = 0.0;
-return translate(v, dx, dy, dz);"
+return translate(v0, dx, dy, dz);"
                 .to_string(),
             Self::TranslationZ => "let dx = 0.0;
 let dy = 0.0;
-let dz = 1.0;
-return translate(v, dx, dy, dz);"
+let dz = 0.5 * t;
+return translate(v0, dx, dy, dz);"
                 .to_string(),
-            Self::Rotation => "return rotateZ(v, PI / 2.0);".to_string(),
+            Self::Rotation => "return normalize(rotateZ(v, PI / 2.0));".to_string(),
             Self::LorenzAttractor => "let rho = 28.0;
 let sigma = 10.0;
 let beta = 8.0 / 3.0;
@@ -43,8 +43,8 @@ return vec3<f32>(
     sigma * (p.y - p.x),
     p.x * (rho - p.z) - p.y,
     p.x * p.y - beta * p.z,
-) / 1000.0;"
-                .to_string(),
+);"
+            .to_string(),
             Self::RoesslerAttractor => "let a = 0.1;
 let b = 0.1;
 let c = 14.0;
@@ -52,8 +52,8 @@ return vec3<f32>(
     -p.y - p.z,
     p.x + a * p.y,
     b + p.z * (p.x - c),
-) / 100.0;"
-                .to_string(),
+);"
+            .to_string(),
         }
     }
 }

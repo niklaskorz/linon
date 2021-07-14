@@ -98,11 +98,7 @@ fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
     );
 }
 
-fn field_function(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> { return v; }
-
-fn vector_fn(p: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    return (1.0 - settings.field_weight) * v + settings.field_weight * field_function(p, v);
-}
+fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
     // Möller-Trumbore intersection algorithm
@@ -176,57 +172,47 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-fn bezier(t: f32, p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>) -> vec2<f32> {
-    return pow(1.0 - t, 3.0) * p0 + 3.0 * pow(1.0 - t, 2.0) * t * p1 + 3.0 * (1.0 - t) * pow(t, 2.0) * p2 + pow(t, 3.0) * p3;
-}
-
-fn ease(t: f32) -> vec2<f32> {
-    return bezier(t, vec2<f32>(0.0, 0.0), vec2<f32>(0.25, 0.1), vec2<f32>(0.25, 1.0), vec2<f32>(1.0, 1.0));
-}
-
-fn get_field_weight() -> f32 {
-    return ease(settings.field_weight).y;
-}
-
-let h: f32 = 0.001;
+let h: f32 = 0.01;
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
-    let field_weight = get_field_weight();
+    let field_weight = settings.field_weight;
     let steps = 500;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
+    var t: f32 = 0.0;
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
         // Runge-Kutta method
-        let k1 = field_function(cur_point, cur_dir);
-        let k2 = field_function(cur_point + 0.5 * h * k1, 0.5 * h * k1);
-        let k3 = field_function(cur_point + 0.5 * h * k2, 0.5 * h * k2);
-        let k4 = field_function(cur_point + h * k3, h * k3);
-        let new_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
-        cur_dir = (1.0 - field_weight) * cur_dir + field_weight * new_dir;
+        let k1 = field_function(cur_point, start_dir, cur_dir, t);
+        let k2 = field_function(cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
+        let k3 = field_function(cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
+        let k4 = field_function(cur_point + h * k3, start_dir, k3, t + h);
+        let v = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+        cur_dir = (1.0 - field_weight) * cur_dir + field_weight * v;
 
-        let unit_dir = normalize(cur_dir);
-        color = ray_color(cur_point, unit_dir, length(cur_dir));
+        let step_dir = cur_dir * h;
+        color = ray_color(cur_point, normalize(step_dir), length(step_dir));
 
         if (color.a > 0.0) {
             color.a = 1.0;
             return color;
         }
 
-        cur_point = cur_point + cur_dir;
-        cur_dir = unit_dir;
+        cur_point = cur_point + step_dir;
+        t = t + h;
     }
 
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
-    let field_weight = get_field_weight();
+    let field_weight = settings.field_weight;
     let steps = 500;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
+    var t: f32 = 0.0;
 
     var sample: RaySample;
     sample.color = vec4<f32>(sample_color, 0.25);
@@ -235,14 +221,14 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
         // Runge-Kutta method
-        let k1 = field_function(cur_point, cur_dir);
-        let k2 = field_function(cur_point + 0.5 * h * k1, 0.5 * h * k1);
-        let k3 = field_function(cur_point + 0.5 * h * k2, 0.5 * h * k2);
-        let k4 = field_function(cur_point + h * k3, h * k3);
-        let new_dir = h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
-        cur_dir = (1.0 - field_weight) * cur_dir + field_weight * new_dir;
+        let k1 = field_function(cur_point, start_dir, cur_dir, t);
+        let k2 = field_function(cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
+        let k3 = field_function(cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
+        let k4 = field_function(cur_point + h * k3, start_dir, k3, t + h);
+        let v = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+        cur_dir = (1.0 - field_weight) * cur_dir + field_weight * v;
 
-        let unit_dir = normalize(cur_dir);
+        let step_dir = cur_dir * h;
 
         if (i % sample_step_size == 0) {
             sample.position = vec4<f32>(cur_point, 1.0);
@@ -250,8 +236,8 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
             ray_samples.data[index] = sample;
         }
 
-        cur_point = cur_point + cur_dir;
-        cur_dir = unit_dir;
+        cur_point = cur_point + step_dir;
+        t = t + h;
     }
 }
 
