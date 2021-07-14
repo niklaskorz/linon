@@ -33,6 +33,7 @@ pub struct Application {
     field_weight: f32,
     predefined_function: PredefinedFunction,
     field_function: String,
+    wireframe: bool,
 }
 
 impl Application {
@@ -149,6 +150,7 @@ impl Application {
             field_weight: 0.001,
             predefined_function: PredefinedFunction::TranslationX,
             field_function: PredefinedFunction::TranslationX.to_code(),
+            wireframe: false,
         })
     }
 
@@ -215,6 +217,7 @@ impl Application {
             field_weight,
             field_function,
             predefined_function,
+            wireframe,
             ..
         } = self;
         let mut field_function_changed = false;
@@ -294,6 +297,11 @@ impl Application {
                 }
                 if let Some(shader_error) = shader_error {
                     ui.label(format!("Shader error: {}", shader_error));
+                }
+            });
+            ui.horizontal(|ui| {
+                if ui.checkbox(wireframe, "Ray outline as wireframe").changed() {
+                    reference_view.update_sample_pipeline(device, *wireframe);
                 }
             });
             reference_view.show(ui, device, queue);

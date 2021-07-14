@@ -35,7 +35,7 @@ let dy = 0.0;
 let dz = 0.5 * t;
 return translate(v0, dx, dy, dz);"
                 .to_string(),
-            Self::Rotation => "return normalize(rotateZ(v, PI / 2.0));".to_string(),
+            Self::Rotation => "return normalize(v0 + rotateZ(v0, PI / 2.0 * t));".to_string(),
             Self::LorenzAttractor => "let rho = 28.0;
 let sigma = 10.0;
 let beta = 8.0 / 3.0;

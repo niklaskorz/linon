@@ -34,8 +34,10 @@ pub struct ReferenceView {
     uniform_bind_group: wgpu::BindGroup,
     mesh_bind_group: wgpu::BindGroup,
 
+    shader: wgpu::ShaderModule,
     sample_index_buffer: wgpu::Buffer,
     sample_num_indices: u32,
+    sample_render_pipeline_layout: wgpu::PipelineLayout,
     sample_render_pipeline: wgpu::RenderPipeline,
 
     prev_pointer_pos: Option<(f32, f32)>,
@@ -211,54 +213,13 @@ impl ReferenceView {
                 bind_group_layouts: &[&uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });
-        let sample_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("sample_render_pipeline"),
-                layout: Some(&sample_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: "sample_main",
-                    buffers: &[vertex_desc()],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: "sample_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: texture.format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::SrcAlpha,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::One,
-                                operation: wgpu::BlendOperation::Max,
-                            },
-                        }),
-                        write_mask: wgpu::ColorWrite::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Cw,
-                    cull_mode: None,
-                    polygon_mode: wgpu::PolygonMode::Line,
-                    // polygon_mode: wgpu::PolygonMode::Fill,
-                    clamp_depth: false,
-                    conservative: false,
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: wgpu::TextureFormat::Depth32Float,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
-                    stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState::default(),
-                }),
-                multisample: wgpu::MultisampleState::default(),
-            });
+        let sample_render_pipeline = create_sample_render_pipeline(
+            device,
+            &sample_render_pipeline_layout,
+            &shader,
+            texture.format,
+            false,
+        );
 
         Self {
             texture,
@@ -271,12 +232,24 @@ impl ReferenceView {
             mesh_bind_group,
             prev_pointer_pos: None,
 
+            shader,
             sample_index_buffer,
             sample_num_indices: sample_indices.len() as u32 * 3,
+            sample_render_pipeline_layout,
             sample_render_pipeline,
 
             needs_redraw: true,
         }
+    }
+
+    pub fn update_sample_pipeline(&mut self, device: &wgpu::Device, wireframe: bool) {
+        self.sample_render_pipeline = create_sample_render_pipeline(
+            device,
+            &self.sample_render_pipeline_layout,
+            &self.shader,
+            self.texture.format,
+            wireframe,
+        );
     }
 
     fn update_camera(&mut self, queue: &wgpu::Queue) {
@@ -413,4 +386,63 @@ impl ReferenceView {
         );
         rpass.draw_indexed(0..self.sample_num_indices, 0, 0..1);
     }
+}
+
+fn create_sample_render_pipeline(
+    device: &wgpu::Device,
+    layout: &wgpu::PipelineLayout,
+    shader: &wgpu::ShaderModule,
+    texture_format: wgpu::TextureFormat,
+    wireframe: bool,
+) -> wgpu::RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("sample_render_pipeline"),
+        layout: Some(layout),
+        vertex: wgpu::VertexState {
+            module: shader,
+            entry_point: "sample_main",
+            buffers: &[vertex_desc()],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: shader,
+            entry_point: "sample_main",
+            targets: &[wgpu::ColorTargetState {
+                format: texture_format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::One,
+                        operation: wgpu::BlendOperation::Max,
+                    },
+                }),
+                write_mask: wgpu::ColorWrite::ALL,
+            }],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Cw,
+            cull_mode: None,
+            polygon_mode: if wireframe {
+                wgpu::PolygonMode::Line
+            } else {
+                wgpu::PolygonMode::Fill
+            },
+            clamp_depth: false,
+            conservative: false,
+        },
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth32Float,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Less,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        }),
+        multisample: wgpu::MultisampleState::default(),
+    })
 }
