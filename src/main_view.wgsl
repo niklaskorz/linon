@@ -98,7 +98,63 @@ fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
     );
 }
 
-fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }
+// t: temperature in degrees Celsius
+fn refraction_index(t: f32) -> f32 {
+    let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
+    let c1 = 0.0000104;
+    let c2 = 0.00366;
+    return (
+        c1
+        * air_pressure
+        * (1.0 + air_pressure * (60.1 - 0.972 * t) * pow(10.0, -10.0))
+        / (1.0 + c2 * t)
+    );
+}
+
+fn refraction(t_in: f32, t_out: f32, angle_in: f32) -> f32 {
+    let n_in = refraction_index(t_in);
+    let n_out = refraction_index(t_out);
+    return n_in / n_out * sin(angle_in);
+}
+
+fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
+    let t_env = 15.0;
+    let t_src = 500.0;
+    let center = vec3<f32>(0.0, 0.0, -1.0);
+    let center_dest = p - center;
+    let normal = normalize(center_dest);
+    let dist = length(center_dest);
+    let max_dist = 1.0;
+
+    let small_v = 0.1 * normalize(v);
+    let p_in = p - small_v;
+    let dist_in = length(p_in - center);
+    let part_in = max(dist_in / max_dist, 1.0);
+    let t_in = part_in * t_env + (1.0 - part_in) * t_src;
+    let p_out = p + small_v;
+    let dist_out = length(p_out - center);
+    let part_out = max(dist_out / max_dist, 1.0);
+    let t_out = part_out * t_env + (1.0 - part_out) * t_src;
+
+    let angle_in = dot(v, normal);
+    let sin_angle_out = refraction(t_in, t_out, angle_in);
+    if (sin_angle_out > 1.0) {
+        return -v;
+    }
+
+    let rot_axis = normal;
+    let rot_sin = sin_angle_out;
+    let rot_cos = cos(asin(rot_sin));
+    let rot_oc = 1.0 - rot_cos;
+    let rot = mat4x4<f32>(
+        vec4<f32>(rot_oc * rot_axis.x * rot_axis.x + rot_cos, rot_oc * rot_axis.x * rot_axis.y - rot_axis.z * rot_sin, rot_oc * rot_axis.z * rot_axis.x + rot_axis.y * rot_sin, 0.0),
+        vec4<f32>(rot_oc * rot_axis.x * rot_axis.y + rot_axis.z * rot_sin, rot_oc * rot_axis.y * rot_axis.y + rot_cos, rot_oc * rot_axis.y * rot_axis.z - rot_axis.x * rot_sin, 0.0),
+        vec4<f32>(rot_oc * rot_axis.z * rot_axis.x - rot_axis.y * rot_sin, rot_oc * rot_axis.y * rot_axis.z + rot_axis.x * rot_sin, rot_oc * rot_axis.z * rot_axis.z + rot_cos, 0.0),
+        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+    );
+
+    return v;
+}
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
     // Möller-Trumbore intersection algorithm
@@ -172,11 +228,11 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.01;
+let h: f32 = 0.1;
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
     let field_weight = settings.field_weight;
-    let steps = 500;
+    let steps = 100;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -208,7 +264,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
     let field_weight = settings.field_weight;
-    let steps = 500;
+    let steps = 100;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
