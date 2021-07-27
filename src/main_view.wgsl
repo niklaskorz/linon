@@ -111,22 +111,28 @@ fn refraction_index(t: f32) -> f32 {
     );
 }
 
-fn refraction(t_in: f32, t_out: f32, angle_in: f32) -> f32 {
+fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     let n_in = refraction_index(t_in);
     let n_out = refraction_index(t_out);
-    return n_in / n_out * sin(angle_in);
+    let r = n_in / n_out;
+    let c = dot(-n, v_in);
+    return r * v_in + (r * c - sqrt(1.0 - pow(r, 2.0) * (1.0 - pow(c, 2.0)))) * n;
 }
 
 fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
     let t_env = 15.0;
-    let t_src = 500.0;
-    let center = vec3<f32>(0.0, 0.0, -1.0);
+    let t_src = 150.0;
+    let center = vec3<f32>(-0.5, 0.5, -0.5);
     let center_dest = p - center;
     let normal = normalize(center_dest);
     let dist = length(center_dest);
-    let max_dist = 1.0;
+    let max_dist = 0.5;
 
-    let small_v = 0.1 * normalize(v);
+    if (dist > max_dist) {
+        return v;
+    }
+
+    let small_v = 0.01 * normalize(v);
     let p_in = p - small_v;
     let dist_in = length(p_in - center);
     let part_in = max(dist_in / max_dist, 1.0);
@@ -136,24 +142,9 @@ fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32
     let part_out = max(dist_out / max_dist, 1.0);
     let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 
-    let angle_in = dot(v, normal);
-    let sin_angle_out = refraction(t_in, t_out, angle_in);
-    if (sin_angle_out > 1.0) {
-        return -v;
-    }
+    let v_out = refraction(t_in, t_out, v, normal);
 
-    let rot_axis = normal;
-    let rot_sin = sin_angle_out;
-    let rot_cos = cos(asin(rot_sin));
-    let rot_oc = 1.0 - rot_cos;
-    let rot = mat4x4<f32>(
-        vec4<f32>(rot_oc * rot_axis.x * rot_axis.x + rot_cos, rot_oc * rot_axis.x * rot_axis.y - rot_axis.z * rot_sin, rot_oc * rot_axis.z * rot_axis.x + rot_axis.y * rot_sin, 0.0),
-        vec4<f32>(rot_oc * rot_axis.x * rot_axis.y + rot_axis.z * rot_sin, rot_oc * rot_axis.y * rot_axis.y + rot_cos, rot_oc * rot_axis.y * rot_axis.z - rot_axis.x * rot_sin, 0.0),
-        vec4<f32>(rot_oc * rot_axis.z * rot_axis.x - rot_axis.y * rot_sin, rot_oc * rot_axis.y * rot_axis.z + rot_axis.x * rot_sin, rot_oc * rot_axis.z * rot_axis.z + rot_cos, 0.0),
-        vec4<f32>(0.0, 0.0, 0.0, 1.0),
-    );
-
-    return v;
+    return v_out;
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
