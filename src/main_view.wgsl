@@ -98,51 +98,60 @@ fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
     );
 }
 
-// t: temperature in degrees Celsius
+// t: temperature in Kelvin
 fn refraction_index(t: f32) -> f32 {
-    let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
-    let c1 = 0.0000104;
-    let c2 = 0.00366;
-    return (
-        c1
-        * air_pressure
-        * (1.0 + air_pressure * (60.1 - 0.972 * t) * pow(10.0, -10.0))
-        / (1.0 + c2 * t)
-    );
+    // https://physics.stackexchange.com/questions/6872/refractive-index-of-air-depending-on-temperature
+    // assuming nominal air pressure
+    // let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
+    return 1.0 + 0.000293 * (t / 300.0);
+}
+
+fn reflect(v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    return v_in - 2.0 * dot(v_in, n) * n;
 }
 
 fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
-    let n_in = refraction_index(t_in);
-    let n_out = refraction_index(t_out);
-    let r = n_in / n_out;
-    let c = dot(-n, v_in);
-    return r * v_in + (r * c - sqrt(1.0 - pow(r, 2.0) * (1.0 - pow(c, 2.0)))) * n;
+    let eta_in = refraction_index(t_in);
+    let eta_out = refraction_index(t_out);
+    var cosi: f32 = clamp(-1.0, 1.0, dot(n, v_in)); 
+    var r: f32;
+    var n_ref: vec3<f32> = n;
+    if (cosi < 0.0) {
+        // outside
+        cosi = -cosi;
+    } else {
+        // inside
+        n_ref = -n;
+    }
+    r = eta_in / eta_out;
+    let k = 1.0 - r * r * (1.0 - cosi * cosi); 
+    if (k < 0.0) {
+        // total reflection;
+        return reflect(v_in, n_ref);
+    }
+    return r * v_in + (r * cosi - sqrt(k)) * n_ref;
 }
 
-fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
-    let t_env = 15.0;
-    let t_src = 150.0;
-    let center = vec3<f32>(-0.5, 0.5, -0.5);
+fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
+    let t_env = 273.15 + 15.0;
+    let t_src = 273.15 + 500.0;
+    let center = vec3<f32>(-0.5, 0.5, 0.0);
     let center_dest = p - center;
     let normal = normalize(center_dest);
     let dist = length(center_dest);
     let max_dist = 0.5;
 
-    if (dist > max_dist) {
+
+    let dist_in = length(p_prev - center);
+    if (dist > max_dist && dist_in > max_dist) {
         return v;
     }
-
-    let small_v = 0.01 * normalize(v);
-    let p_in = p - small_v;
-    let dist_in = length(p_in - center);
     let part_in = max(dist_in / max_dist, 1.0);
     let t_in = part_in * t_env + (1.0 - part_in) * t_src;
-    let p_out = p + small_v;
-    let dist_out = length(p_out - center);
-    let part_out = max(dist_out / max_dist, 1.0);
+    let part_out = max(dist / max_dist, 1.0);
     let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 
-    let v_out = refraction(t_in, t_out, v, normal);
+    let v_out = refraction(t_env, t_src, v, normal);
 
     return v_out;
 }
@@ -219,11 +228,11 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.1;
+let h: f32 = 0.01;
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
     let field_weight = settings.field_weight;
-    let steps = 100;
+    let steps = 500;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -231,10 +240,10 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
         // Runge-Kutta method
-        let k1 = field_function(cur_point, start_dir, cur_dir, t);
-        let k2 = field_function(cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
-        let k3 = field_function(cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
-        let k4 = field_function(cur_point + h * k3, start_dir, k3, t + h);
+        let k1 = field_function(cur_point - cur_dir * h, cur_point, start_dir, cur_dir, t);
+        let k2 = field_function(cur_point, cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
+        let k3 = field_function(cur_point, cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
+        let k4 = field_function(cur_point, cur_point + h * k3, start_dir, k3, t + h);
         let v = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
         cur_dir = (1.0 - field_weight) * cur_dir + field_weight * v;
 
@@ -255,7 +264,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
     let field_weight = settings.field_weight;
-    let steps = 100;
+    let steps = 500;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -268,10 +277,10 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
 
     for (var i: i32 = 0; i < steps; i = i + 1) {
         // Runge-Kutta method
-        let k1 = field_function(cur_point, start_dir, cur_dir, t);
-        let k2 = field_function(cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
-        let k3 = field_function(cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
-        let k4 = field_function(cur_point + h * k3, start_dir, k3, t + h);
+        let k1 = field_function(cur_point - cur_dir * h, cur_point, start_dir, cur_dir, t);
+        let k2 = field_function(cur_point, cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
+        let k3 = field_function(cur_point, cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
+        let k4 = field_function(cur_point, cur_point + h * k3, start_dir, k3, t + h);
         let v = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
         cur_dir = (1.0 - field_weight) * cur_dir + field_weight * v;
 
