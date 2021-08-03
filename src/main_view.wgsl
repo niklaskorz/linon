@@ -98,46 +98,45 @@ fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
     );
 }
 
-// t: temperature in Kelvin
+// t: temperature in Celsius
 fn refraction_index(t: f32) -> f32 {
-    // https://physics.stackexchange.com/questions/6872/refractive-index-of-air-depending-on-temperature
-    // assuming nominal air pressure
+    // Calculation term by Y. Zhao et al
     let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
     let c1 = 0.0000104;
     let c2 = 0.00366;
     return c1 * air_pressure * (1.0 + air_pressure * (60.1 - 0.972 * t) * pow(10.0, -10.0)) / (1.0 + c2 * t);
 }
 
-fn reflect(v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
-    return v_in - 2.0 * dot(v_in, n) * n;
+// built-in in WGSL spec, but not in naga yet
+fn refract(I: vec3<f32>, N: vec3<f32>, eta: f32) -> vec3<f32> {
+    let k = 1.0 - eta * eta * (1.0 - dot(N, I) * dot(N, I));
+    if (k < 0.0) {
+        return vec3<f32>(0.0, 0.0, 0.0);
+    }
+    return eta * I - (eta * dot(I, N) + sqrt(k)) * N;
 }
 
 fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     let eta_in = refraction_index(t_in);
     let eta_out = refraction_index(t_out);
     var cosi: f32 = clamp(-1.0, 1.0, dot(n, v_in)); 
-    var r: f32;
     var n_ref: vec3<f32> = n;
-    if (cosi < 0.0) {
-        // outside
-        cosi = -cosi;
-    } else {
+    if (dot(n, v_in) >= 0.0) {
         // inside
         n_ref = -n;
     }
-    r = eta_out / eta_in;
-    let k = 1.0 - r * r * (1.0 - cosi * cosi); 
-    if (k < 0.0) {
+    let result = refract(v_in, n_ref, eta_in / eta_out);
+    if (result.x == 0.0 && result.y == 0.0 && result.z == 0.0) {
         // total reflection;
         return reflect(v_in, n_ref);
     }
-    return r * v_in + (r * cosi - sqrt(k)) * n_ref;
+    return result;
 }
 
 fn air_refraction(dist_in: f32, dist_out: f32, v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     let t_env = 15.0;
-    let t_src = 300.0;
-    let max_dist = 0.25;
+    let t_src = 30.0;
+    let max_dist = 0.01;
     let part_in = clamp(0.0, 1.0, dist_in / max_dist);
     let t_in = part_in * t_env + (1.0 - part_in) * t_src;
     let part_out = clamp(0.0, 1.0, dist_out / max_dist);
