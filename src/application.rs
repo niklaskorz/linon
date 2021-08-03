@@ -323,12 +323,8 @@ impl Application {
         }
     }
 
-    pub fn render(&mut self, scale_factor: f32) {
-        let frame = self
-            .swap_chain
-            .get_current_frame()
-            .expect("failed to acquire next swap chain texture")
-            .output;
+    pub fn render(&mut self, scale_factor: f32) -> Result<(), wgpu::SwapChainError> {
+        let frame = self.swap_chain.get_current_frame()?.output;
 
         self.platform
             .update_time(self.start_time.elapsed().as_secs_f64());
@@ -397,5 +393,7 @@ impl Application {
         );
 
         self.queue.submit(Some(encoder.finish()));
+
+        Ok(())
     }
 }

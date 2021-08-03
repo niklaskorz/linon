@@ -85,7 +85,16 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 }
                 _ => {}
             },
-            Event::RedrawRequested(_) => app.render(window.scale_factor() as f32),
+            Event::RedrawRequested(_) => {
+                if let Err(e) = app.render(window.scale_factor() as f32) {
+                    if e == wgpu::SwapChainError::Outdated {
+                        let size = window.inner_size();
+                        app.resize(size.width, size.height);
+                    } else {
+                        panic!("SwapChainError: {}", e);
+                    }
+                }
+            }
             Event::MainEventsCleared => {
                 let mut reload_compute_shader = false;
                 for result in rx.try_iter() {
