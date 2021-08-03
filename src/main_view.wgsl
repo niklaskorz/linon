@@ -102,8 +102,10 @@ fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
 fn refraction_index(t: f32) -> f32 {
     // https://physics.stackexchange.com/questions/6872/refractive-index-of-air-depending-on-temperature
     // assuming nominal air pressure
-    // let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
-    return 1.0 + 0.000293 * (t / 300.0);
+    let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
+    let c1 = 0.0000104;
+    let c2 = 0.00366;
+    return c1 * air_pressure * (1.0 + air_pressure * (60.1 - 0.972 * t) * pow(10.0, -10.0)) / (1.0 + c2 * t);
 }
 
 fn reflect(v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
@@ -123,7 +125,7 @@ fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32>
         // inside
         n_ref = -n;
     }
-    r = eta_in / eta_out;
+    r = eta_out / eta_in;
     let k = 1.0 - r * r * (1.0 - cosi * cosi); 
     if (k < 0.0) {
         // total reflection;
@@ -132,34 +134,42 @@ fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32>
     return r * v_in + (r * cosi - sqrt(k)) * n_ref;
 }
 
+fn air_refraction(dist_in: f32, dist_out: f32, v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    let t_env = 15.0;
+    let t_src = 300.0;
+    let max_dist = 0.25;
+    let part_in = clamp(0.0, 1.0, dist_in / max_dist);
+    let t_in = part_in * t_env + (1.0 - part_in) * t_src;
+    let part_out = clamp(0.0, 1.0, dist_out / max_dist);
+    let t_out = part_out * t_env + (1.0 - part_out) * t_src;
+    return refraction(t_in, t_out, v, n);
+}
+
+fn spherical_heat(p_in: vec3<f32>, p_out: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
+    let center = vec3<f32>(-0.5, 0.5, -0.5);
+    let center_dest = p_out - center;
+    let normal = normalize(center_dest);
+    let dist_in = length(p_in - center);
+    let dist_out = length(center_dest);
+    return air_refraction(dist_in, dist_out, v, normal);
+}
+
 fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
     let d = dot(p0, n);
     // assuming n is a unit vector
     return abs(dot(p, n) - d);
 }
 
-fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
-    let t_env = 273.15 + 15.0;
-    let t_src = 273.15 + 500.0;
-
+fn plane_heat(p_in: vec3<f32>, p_out: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
     let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
     let plane_n = vec3<f32>(0.0, 1.0, 0.0);
+    let dist_in = point_plane_distance(p_in, plane_n, plane_p0);
+    let dist_out = point_plane_distance(p_out, plane_n, plane_p0);
+    return air_refraction(dist_in, dist_out, v, plane_n);
+}
 
-    let dist = point_plane_distance(p, plane_n, plane_p0);
-    let max_dist = 0.5;
-
-    let dist_in = point_plane_distance(p_prev, plane_n, plane_p0);
-    if (dist > max_dist && dist_in > max_dist) {
-        // return v;
-    }
-    let part_in = max(dist_in / max_dist, 1.0);
-    let t_in = part_in * t_env + (1.0 - part_in) * t_src;
-    let part_out = max(dist / max_dist, 1.0);
-    let t_out = part_out * t_env + (1.0 - part_out) * t_src;
-
-    let v_out = refraction(t_env, t_src, v, plane_n);
-
-    return v_out;
+fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
+    return plane_heat(p_prev, p, v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
