@@ -43,6 +43,7 @@ impl CameraUniform {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Settings {
     field_weight: f32,
+    mouse_pos: [f32; 2],
 }
 
 pub struct MainView {
@@ -95,7 +96,10 @@ impl MainView {
             wgpu::FilterMode::Linear,
         );
 
-        let settings = Settings { field_weight: 0.01 };
+        let settings = Settings {
+            field_weight: 0.01,
+            mouse_pos: [0.5, 0.6],
+        };
         let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("settings_buffer"),
             contents: bytemuck::cast_slice(&[settings]),
@@ -345,8 +349,11 @@ impl MainView {
         self.prev_pointer_pos = Some(pos);
     }
 
-    pub fn update_settings(&mut self, queue: &wgpu::Queue, field_weight: f32) {
-        let settings = Settings { field_weight };
+    pub fn update_settings(&mut self, queue: &wgpu::Queue, field_weight: f32, mouse_pos: [f32; 2]) {
+        let settings = Settings {
+            field_weight,
+            mouse_pos,
+        };
         queue.write_buffer(&self.settings_buffer, 0, bytemuck::cast_slice(&[settings]));
         self.needs_redraw = true;
     }
@@ -436,16 +443,23 @@ impl MainView {
         rpass: &mut egui_wgpu_backend::RenderPass,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-    ) {
+    ) -> Option<[f32; 2]> {
         let size = ui.available_size();
         if self.texture.dimensions != (size.x as u32, size.y as u32) {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
         let resp = ui.image(self.texture_id, size);
         let input = ui.input();
+        let mut mouse_pos = None;
         if let Some(pos) = resp.hover_pos() {
             if input.key_pressed(egui::Key::Space) {
                 self.reset_camera(queue);
+            }
+            if input.pointer.any_pressed() {
+                mouse_pos = Some([
+                    (pos.x - resp.rect.left()) / resp.rect.width(),
+                    1.0 - (pos.y - resp.rect.top()) / resp.rect.height(),
+                ]);
             }
             let camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
                 CameraOperation::Rotate
@@ -466,6 +480,7 @@ impl MainView {
                 self.on_zoom(queue, scroll_delta.y);
             }
         }
+        mouse_pos
     }
 
     pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder) {

@@ -31,6 +31,7 @@ pub struct Application {
     // gui state
     shader_error: Option<String>,
     field_weight: f32,
+    mouse_pos: [f32; 2],
     predefined_function: PredefinedFunction,
     field_function: String,
     wireframe: bool,
@@ -148,6 +149,7 @@ impl Application {
             // gui state
             shader_error: None,
             field_weight: 0.001,
+            mouse_pos: [0.5, 0.5],
             predefined_function: PredefinedFunction::TranslationX,
             field_function: PredefinedFunction::TranslationX.to_code(),
             wireframe: false,
@@ -215,6 +217,7 @@ impl Application {
             rpass,
             shader_error,
             field_weight,
+            mouse_pos,
             field_function,
             predefined_function,
             wireframe,
@@ -227,7 +230,7 @@ impl Application {
             ui.horizontal(|ui| {
                 ui.label("Field weight:");
                 if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
-                    main_view.update_settings(queue, *field_weight);
+                    main_view.update_settings(queue, *field_weight, *mouse_pos);
                 }
             });
             egui::ComboBox::from_label("Predefined function")
@@ -309,7 +312,10 @@ impl Application {
         let device = &self.device;
         let queue = &self.queue;
         egui::CentralPanel::default().show(ctx, |ui| {
-            main_view.show(ui, rpass, device, queue);
+            if let Some(new_pos) = main_view.show(ui, rpass, device, queue) {
+                *mouse_pos = new_pos;
+                main_view.update_settings(queue, *field_weight, *mouse_pos);
+            }
         });
         if field_function_changed {
             if let Err(e) = self

@@ -14,6 +14,8 @@ var<uniform> camera: Camera;
 [[block]]
 struct Settings {
     field_weight: f32;
+    mouse_pos_x: f32;
+    mouse_pos_y: f32;
 };
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
@@ -119,10 +121,8 @@ fn refract(I: vec3<f32>, N: vec3<f32>, eta: f32) -> vec3<f32> {
 fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     let eta_in = refraction_index(t_in);
     let eta_out = refraction_index(t_out);
-    var cosi: f32 = clamp(-1.0, 1.0, dot(n, v_in)); 
     var n_ref: vec3<f32> = n;
     if (dot(n, v_in) >= 0.0) {
-        // inside
         n_ref = -n;
     }
     let result = refract(v_in, n_ref, eta_in / eta_out);
@@ -133,10 +133,7 @@ fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32>
     return result;
 }
 
-fn air_refraction(dist_in: f32, dist_out: f32, v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
-    let t_env = 15.0;
-    let t_src = 30.0;
-    let max_dist = 0.01;
+fn air_refraction(t_env: f32, t_src: f32, max_dist: f32, dist_in: f32, dist_out: f32, v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     let part_in = clamp(0.0, 1.0, dist_in / max_dist);
     let t_in = part_in * t_env + (1.0 - part_in) * t_src;
     let part_out = clamp(0.0, 1.0, dist_out / max_dist);
@@ -145,12 +142,15 @@ fn air_refraction(dist_in: f32, dist_out: f32, v: vec3<f32>, n: vec3<f32>) -> ve
 }
 
 fn spherical_heat(p_in: vec3<f32>, p_out: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
+    let t_env = 15.0;
+    let t_src = 100.0;
+    let max_dist = 0.25;
     let center = vec3<f32>(-0.5, 0.5, -0.5);
     let center_dest = p_out - center;
     let normal = normalize(center_dest);
     let dist_in = length(p_in - center);
     let dist_out = length(center_dest);
-    return air_refraction(dist_in, dist_out, v, normal);
+    return air_refraction(t_env, t_src, max_dist, dist_in, dist_out, v, normal);
 }
 
 fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
@@ -160,15 +160,18 @@ fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
 }
 
 fn plane_heat(p_in: vec3<f32>, p_out: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
+    let t_env = 15.0;
+    let t_src = 20.0;
+    let max_dist = 0.1;
     let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
     let plane_n = vec3<f32>(0.0, 1.0, 0.0);
     let dist_in = point_plane_distance(p_in, plane_n, plane_p0);
     let dist_out = point_plane_distance(p_out, plane_n, plane_p0);
-    return air_refraction(dist_in, dist_out, v, plane_n);
+    return air_refraction(t_env, t_src, max_dist, dist_in, dist_out, v, plane_n);
 }
 
 fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
-    return plane_heat(p_prev, p, v);
+    return spherical_heat(p_prev, p, v);
 }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
@@ -243,11 +246,11 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.01;
+let h: f32 = 0.005;
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
     let field_weight = settings.field_weight;
-    let steps = 500;
+    let steps = 1000;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -279,14 +282,14 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
     let field_weight = settings.field_weight;
-    let steps = 500;
+    let steps = 1000;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
     var t: f32 = 0.0;
 
     var sample: RaySample;
-    sample.color = vec4<f32>(sample_color, 0.25);
+    sample.color = vec4<f32>(sample_color, 0.5);
     let sample_steps = 100;
     let sample_step_size = steps / sample_steps;
 
@@ -313,14 +316,14 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
 }
 
 var sample_positions: array<vec2<f32>, 8> = array<vec2<f32>, 8>(
-    vec2<f32>(0.0, 0.0), // 0: (0, 0)
-    vec2<f32>(0.5, 0.0), // 1: (1, 0)
-    vec2<f32>(1.0, 0.0), // 2: (2, 0)
-    vec2<f32>(1.0, 0.5), // 3: (2, 1)
+    vec2<f32>(-1.0, -1.0), // 0: (0, 0)
+    vec2<f32>(0.0, -1.0), // 1: (1, 0)
+    vec2<f32>(1.0, -1.0), // 2: (2, 0)
+    vec2<f32>(1.0, 0.0), // 3: (2, 1)
     vec2<f32>(1.0, 1.0), // 4: (2, 2)
-    vec2<f32>(0.5, 1.0), // 5: (1, 2)
-    vec2<f32>(0.0, 1.0), // 6: (0, 2)
-    vec2<f32>(0.0, 0.5), // 7: (1, 2)
+    vec2<f32>(0.0, 1.0), // 5: (1, 2)
+    vec2<f32>(-1.0, 1.0), // 6: (0, 2)
+    vec2<f32>(-1.0, 0.0), // 7: (1, 2)
 );
 var sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
     vec3<f32>(1.0, 0.0, 0.0),
@@ -373,7 +376,8 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     // Sample points for reference view
     // Only executed in first workgroup for best performance
     if (gid.x < 8u && gid.y == 0u) {
-        let pos = sample_positions[i32(gid.x)];
+        let mouse_pos = vec2<f32>(settings.mouse_pos_x, settings.mouse_pos_y);
+        let pos = mouse_pos + 0.01 * sample_positions[i32(gid.x)];
         let color = sample_colors[i32(gid.x)];
         let u = pos.x * viewport_width - 0.5 * viewport_width;
         let v = pos.y * viewport_height - 0.5 * viewport_height;
