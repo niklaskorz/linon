@@ -132,26 +132,32 @@ fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32>
     return r * v_in + (r * cosi - sqrt(k)) * n_ref;
 }
 
+fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
+    let d = dot(p0, n);
+    // assuming n is a unit vector
+    return abs(dot(p, n) - d);
+}
+
 fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
     let t_env = 273.15 + 15.0;
     let t_src = 273.15 + 500.0;
-    let center = vec3<f32>(-0.5, 0.5, 0.0);
-    let center_dest = p - center;
-    let normal = normalize(center_dest);
-    let dist = length(center_dest);
+
+    let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
+    let plane_n = vec3<f32>(0.0, 1.0, 0.0);
+
+    let dist = point_plane_distance(p, plane_n, plane_p0);
     let max_dist = 0.5;
 
-
-    let dist_in = length(p_prev - center);
+    let dist_in = point_plane_distance(p_prev, plane_n, plane_p0);
     if (dist > max_dist && dist_in > max_dist) {
-        return v;
+        // return v;
     }
     let part_in = max(dist_in / max_dist, 1.0);
     let t_in = part_in * t_env + (1.0 - part_in) * t_src;
     let part_out = max(dist / max_dist, 1.0);
     let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 
-    let v_out = refraction(t_env, t_src, v, normal);
+    let v_out = refraction(t_env, t_src, v, plane_n);
 
     return v_out;
 }
