@@ -109,48 +109,23 @@ fn refraction_index(t: f32) -> f32 {
     return c1 * air_pressure * (1.0 + air_pressure * (60.1 - 0.972 * t) * pow(10.0, -10.0)) / (1.0 + c2 * t);
 }
 
-// built-in in WGSL spec, but not in naga yet
-fn refract(I: vec3<f32>, N: vec3<f32>, eta: f32) -> vec3<f32> {
-    let k = 1.0 - eta * eta * (1.0 - dot(N, I) * dot(N, I));
-    if (k < 0.0) {
-        return vec3<f32>(0.0, 0.0, 0.0);
-    }
-    return eta * I - (eta * dot(I, N) + sqrt(k)) * N;
-}
-
 fn refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     let eta_in = refraction_index(t_in);
     let eta_out = refraction_index(t_out);
+    var cosi: f32 = clamp(-1.0, 1.0, dot(v_in, n));
     var n_ref: vec3<f32> = n;
-    if (dot(n, v_in) >= 0.0) {
+    if (cosi < 0.0) {
+        cosi = -cosi;
+    } else {
         n_ref = -n;
     }
-    let result = refract(v_in, n_ref, eta_in / eta_out);
-    if (result.x == 0.0 && result.y == 0.0 && result.z == 0.0) {
-        // total reflection;
+    let eta = eta_in / eta_out;
+    let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
+    if (k < 0.0) {
+        // total reflection
         return reflect(v_in, n_ref);
     }
-    return result;
-}
-
-fn air_refraction(t_env: f32, t_src: f32, max_dist: f32, dist_in: f32, dist_out: f32, v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
-    let part_in = clamp(0.0, 1.0, dist_in / max_dist);
-    let t_in = part_in * t_env + (1.0 - part_in) * t_src;
-    let part_out = clamp(0.0, 1.0, dist_out / max_dist);
-    let t_out = part_out * t_env + (1.0 - part_out) * t_src;
-    return refraction(t_in, t_out, v, n);
-}
-
-fn spherical_heat(p_in: vec3<f32>, p_out: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let t_env = 15.0;
-    let t_src = 100.0;
-    let max_dist = 0.25;
-    let center = vec3<f32>(-0.5, 0.5, -0.5);
-    let center_dest = p_out - center;
-    let normal = normalize(center_dest);
-    let dist_in = length(p_in - center);
-    let dist_out = length(center_dest);
-    return air_refraction(t_env, t_src, max_dist, dist_in, dist_out, v, normal);
+    return eta * v_in + (eta * cosi - sqrt(k)) * n_ref;
 }
 
 fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
@@ -159,20 +134,7 @@ fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
     return abs(dot(p, n) - d);
 }
 
-fn plane_heat(p_in: vec3<f32>, p_out: vec3<f32>, v: vec3<f32>) -> vec3<f32> {
-    let t_env = 15.0;
-    let t_src = 20.0;
-    let max_dist = 0.1;
-    let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
-    let plane_n = vec3<f32>(0.0, 1.0, 0.0);
-    let dist_in = point_plane_distance(p_in, plane_n, plane_p0);
-    let dist_out = point_plane_distance(p_out, plane_n, plane_p0);
-    return air_refraction(t_env, t_src, max_dist, dist_in, dist_out, v, plane_n);
-}
-
-fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {
-    return spherical_heat(p_prev, p, v);
-}
+fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }
 
 fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
     // Möller-Trumbore intersection algorithm
