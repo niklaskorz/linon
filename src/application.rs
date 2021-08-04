@@ -148,10 +148,10 @@ impl Application {
             previous_frame_time: None,
             // gui state
             shader_error: None,
-            field_weight: 0.001,
+            field_weight: 1.0,
             mouse_pos: [0.5, 0.5],
-            predefined_function: PredefinedFunction::TranslationX,
-            field_function: PredefinedFunction::TranslationX.to_code(),
+            predefined_function: PredefinedFunction::MirageSpherical,
+            field_function: PredefinedFunction::MirageSpherical.to_code(),
             wireframe: false,
         })
     }
@@ -236,6 +236,28 @@ impl Application {
             egui::ComboBox::from_label("Predefined function")
                 .selected_text(predefined_function.to_string())
                 .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::MirageSpherical,
+                            PredefinedFunction::MirageSpherical.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::MirageSpherical.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::MiragePlane,
+                            PredefinedFunction::MiragePlane.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::MiragePlane.to_code();
+                        field_function_changed = true;
+                    }
                     if ui
                         .selectable_value(
                             predefined_function,

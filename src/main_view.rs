@@ -81,7 +81,7 @@ impl MainView {
             label: Some("compute_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&with_field_function(
                 shader_src,
-                &PredefinedFunction::TranslationX.to_code(),
+                &PredefinedFunction::MirageSpherical.to_code(),
             ))),
             #[cfg(not(target_arch = "wasm32"))]
             flags: wgpu::ShaderFlags::all(),
@@ -97,7 +97,7 @@ impl MainView {
         );
 
         let settings = Settings {
-            field_weight: 0.01,
+            field_weight: 1.0,
             mouse_pos: [0.5, 0.6],
         };
         let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -499,11 +499,11 @@ impl MainView {
 
 fn with_field_function(shader_src: &str, field_function_body: &str) -> String {
     let field_function = format!(
-        "fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {{\n{}\n}}",
+        "fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> {{\n{}\n}}",
         field_function_body,
     );
     shader_src.replace(
-        "fn field_function(p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }",
+        "fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }",
         &field_function,
     )
 }
