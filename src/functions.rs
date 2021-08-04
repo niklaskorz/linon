@@ -29,8 +29,8 @@ impl PredefinedFunction {
     pub fn to_code(&self) -> String {
         match self {
             Self::Custom => "".to_string(),
-            Self::MirageSpherical => "let t_env = 15.0;
-let t_src = 100.0;
+            Self::MirageSpherical => "let t_env = 15.0; // °C
+let t_src = 100.0; // °C
 let max_dist = 0.25;
 let center = vec3<f32>(-0.5, 0.5, -0.5);
 
@@ -45,8 +45,8 @@ let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 
 return refraction(t_in, t_out, v, normal);"
                 .to_string(),
-            Self::MiragePlane => "let t_env = 15.0;
-let t_src = 22.0;
+            Self::MiragePlane => "let t_env = 15.0; // °C
+let t_src = 22.0; // °C
 let max_dist = 0.01;
 let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
 let plane_n = vec3<f32>(0.0, 1.0, 0.0);
