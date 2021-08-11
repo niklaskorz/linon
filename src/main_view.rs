@@ -49,6 +49,8 @@ struct Settings {
 pub struct MainView {
     texture: Texture,
     texture_id: egui::TextureId,
+    ray_casting_texture: Texture,
+    mapping_texture: Texture,
     shader_src: String,
     _shader: wgpu::ShaderModule,
     compute_bind_group_layout: wgpu::BindGroupLayout,
@@ -58,6 +60,9 @@ pub struct MainView {
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
     ray_samples_bind_group: wgpu::BindGroup,
+    lyapunov_bind_group_layout: wgpu::BindGroupLayout,
+    lyapunov_bind_group: wgpu::BindGroup,
+    lyapunov_pipeline: wgpu::ComputePipeline,
     settings_buffer: wgpu::Buffer,
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
@@ -89,11 +94,33 @@ impl MainView {
             flags: wgpu::ShaderFlags::VALIDATION,
         });
 
-        let texture = Texture::new(device, (width, height), Some("main_texture"));
+        let texture = Texture::new(
+            device,
+            (width, height),
+            Some("main_texture"),
+            wgpu::TextureFormat::Rgba8Unorm,
+            true,
+        );
         let texture_id = rpass.egui_texture_from_wgpu_texture(
             device,
             &texture.texture,
             wgpu::FilterMode::Linear,
+        );
+
+        let ray_casting_texture = Texture::new(
+            device,
+            (width, height),
+            Some("ray_casting_texture"),
+            wgpu::TextureFormat::Rgba8Unorm,
+            true,
+        );
+
+        let mapping_texture = Texture::new(
+            device,
+            (width, height),
+            Some("mapping_texture"),
+            wgpu::TextureFormat::Rgba32Float,
+            true,
         );
 
         let settings = Settings {
@@ -129,6 +156,16 @@ impl MainView {
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: mapping_texture.format,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
                         binding: 2,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
@@ -156,7 +193,11 @@ impl MainView {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture.view),
+                    resource: wgpu::BindingResource::TextureView(&ray_casting_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&mapping_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
@@ -248,9 +289,87 @@ impl MainView {
             entry_point: "main",
         });
 
+        let lyapunov_shader_src = include_str!("lyapunov.wgsl");
+        let lyapunov_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("lyapunov_shader"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(lyapunov_shader_src)),
+            #[cfg(not(target_arch = "wasm32"))]
+            flags: wgpu::ShaderFlags::all(),
+            #[cfg(target_arch = "wasm32")]
+            flags: wgpu::ShaderFlags::VALIDATION,
+        });
+        let lyapunov_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: texture.format,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("lyapunov_bind_group_layout"),
+            });
+        let lyapunov_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &lyapunov_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&ray_casting_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&mapping_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&texture.view),
+                },
+            ],
+            label: Some("lyapunov_bind_group"),
+        });
+        let lyapunov_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("lyapunov_pipeline_layout"),
+                bind_group_layouts: &[&lyapunov_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+        let lyapunov_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("lyapunov_pipeline"),
+            layout: Some(&lyapunov_pipeline_layout),
+            module: &lyapunov_shader,
+            entry_point: "main",
+        });
+
         Self {
             texture,
             texture_id,
+            ray_casting_texture,
+            mapping_texture,
             shader_src: shader_src.to_string(),
             _shader: shader,
             compute_bind_group_layout,
@@ -260,6 +379,9 @@ impl MainView {
             mesh_bind_group_layout,
             mesh_bind_group,
             ray_samples_bind_group,
+            lyapunov_bind_group_layout,
+            lyapunov_bind_group,
+            lyapunov_pipeline,
             settings_buffer,
 
             camera_buffer,
@@ -367,18 +489,42 @@ impl MainView {
         height: u32,
     ) {
         rpass.free(self.texture_id);
-        self.texture = Texture::new(device, (width, height), Some("texture"));
+        self.texture = Texture::new(
+            device,
+            (width, height),
+            Some("texture"),
+            wgpu::TextureFormat::Rgba8Unorm,
+            true,
+        );
         self.texture_id = rpass.egui_texture_from_wgpu_texture(
             device,
             &self.texture.texture,
             wgpu::FilterMode::Linear,
+        );
+        self.ray_casting_texture = Texture::new(
+            device,
+            (width, height),
+            Some("ray_casting_texture"),
+            wgpu::TextureFormat::Rgba8Unorm,
+            true,
+        );
+        self.mapping_texture = Texture::new(
+            device,
+            (width, height),
+            Some("mapping_texture"),
+            wgpu::TextureFormat::Rgba32Float,
+            true,
         );
         self.compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.compute_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&self.texture.view),
+                    resource: wgpu::BindingResource::TextureView(&self.ray_casting_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&self.mapping_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
@@ -390,6 +536,24 @@ impl MainView {
                 },
             ],
             label: Some("compute_bind_group"),
+        });
+        self.lyapunov_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.lyapunov_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&self.ray_casting_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&self.mapping_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&self.texture.view),
+                },
+            ],
+            label: Some("lyapunov_bind_group"),
         });
         self.camera.update_screen(width as f32, height as f32);
         self.update_camera(queue);
@@ -487,12 +651,18 @@ impl MainView {
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("cpass"),
         });
+        let (width, height) = self.texture.dimensions;
+
         cpass.set_pipeline(&self.compute_pipeline);
         cpass.set_bind_group(0, &self.compute_bind_group, &[]);
         cpass.set_bind_group(1, &self.mesh_bind_group, &[]);
         cpass.set_bind_group(2, &self.ray_samples_bind_group, &[]);
-        let (width, height) = self.texture.dimensions;
         cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
+
+        cpass.set_pipeline(&self.lyapunov_pipeline);
+        cpass.set_bind_group(0, &self.lyapunov_bind_group, &[]);
+        cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
+
         self.needs_redraw = false;
     }
 }

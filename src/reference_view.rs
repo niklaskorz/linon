@@ -64,7 +64,13 @@ impl ReferenceView {
 
         let dimensions = (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32);
 
-        let texture = Texture::new(&device, dimensions, Some("reference_texture"));
+        let texture = Texture::new(
+            &device,
+            dimensions,
+            Some("reference_texture"),
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            false,
+        );
         let texture_id = rpass.egui_texture_from_wgpu_texture(
             device,
             &texture.texture,

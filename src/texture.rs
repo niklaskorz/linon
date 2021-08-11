@@ -6,9 +6,14 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(device: &wgpu::Device, dimensions: (u32, u32), label: Option<&str>) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        dimensions: (u32, u32),
+        label: Option<&str>,
+        format: wgpu::TextureFormat,
+        storage: bool,
+    ) -> Self {
         let (width, height) = dimensions;
-        let format = wgpu::TextureFormat::Rgba8Unorm;
         let size = wgpu::Extent3d {
             width,
             height,
@@ -22,8 +27,11 @@ impl Texture {
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: wgpu::TextureUsage::SAMPLED
-                | wgpu::TextureUsage::RENDER_ATTACHMENT
-                | wgpu::TextureUsage::STORAGE,
+                | if storage {
+                    wgpu::TextureUsage::STORAGE
+                } else {
+                    wgpu::TextureUsage::RENDER_ATTACHMENT
+                },
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 

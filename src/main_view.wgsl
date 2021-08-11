@@ -1,6 +1,9 @@
 [[group(0), binding(0)]]
 var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
 
+[[group(0), binding(1)]]
+var mapping: [[access(write)]] texture_storage_2d<rgba32float>;
+
 [[block]]
 struct Camera {
     origin: vec4<f32>;
@@ -210,15 +213,24 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
 
 let h: f32 = 0.005;
 
-fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32> {
+struct NonlinearRayColorResult {
+    color: vec4<f32>;
+    mapping_point: vec4<f32>;
+};
+
+fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> NonlinearRayColorResult {
+    var result: NonlinearRayColorResult;
+    result.mapping_point = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+
     let field_weight = settings.field_weight;
     let steps = 1000;
+    var has_color: bool = false;
+    var has_mapping_point: bool = false;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
-    var color: vec4<f32>;
     var t: f32 = 0.0;
 
-    for (var i: i32 = 0; i < steps; i = i + 1) {
+    for (var i: i32 = 0; i < steps && (!has_color || result.mapping_point.w == 0.0); i = i + 1) {
         // Runge-Kutta method
         let k1 = field_function(cur_point - cur_dir * h, cur_point, start_dir, cur_dir, t);
         let k2 = field_function(cur_point, cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
@@ -228,18 +240,24 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> vec4<f32
         cur_dir = (1.0 - field_weight) * cur_dir + field_weight * v;
 
         let step_dir = cur_dir * h;
-        color = ray_color(cur_point, normalize(step_dir), length(step_dir));
-
-        if (color.a > 0.0) {
-            color.a = 1.0;
-            return color;
+        if (!has_color) {
+            result.color = ray_color(cur_point, normalize(step_dir), length(step_dir));
+            has_color = result.color.a > 0.0;
         }
 
         cur_point = cur_point + step_dir;
         t = t + h;
+
+        if (result.mapping_point.w == 0.0 && t >= 4.0) {
+            result.mapping_point = vec4<f32>(cur_point, 1.0);
+        }
     }
 
-    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    result.color.a = 1.0;
+    if (!has_color) {
+        result.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    }
+    return result;
 }
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
@@ -301,7 +319,7 @@ var sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
 [[stage(compute), workgroup_size(8, 8)]]
 fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let size = textureDimensions(target);
-    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y));
+    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
         return;
     }
@@ -331,8 +349,9 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         let color = ray_color(origin, dir, 100.0);
         textureStore(target, coords, color);
     } else {
-        let color = nonlinear_ray_color(origin, dir);
-        textureStore(target, coords, color);
+        let result = nonlinear_ray_color(origin, dir);
+        textureStore(target, coords, result.color);
+        textureStore(mapping, coords, result.mapping_point);
     }
 
     // Sample points for reference view
