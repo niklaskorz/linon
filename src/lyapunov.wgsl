@@ -56,22 +56,23 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         return;
     }
     let color = textureLoad(ray_casting, coords, 0);
-    if (coords.x < 10 || coords.y < 10 || coords.x >= size.x - 10 || coords.y >= size.y - 10) {
+    let delta = 2;
+    if (coords.x < delta || coords.y < delta || coords.x >= size.x - delta || coords.y >= size.y - delta) {
         textureStore(target, coords, color);
         return;
     }
-    let x_next = textureLoad(mapping, vec2<i32>(coords.x + 10, coords.y), 0).xyz;
-    let x_prev = textureLoad(mapping, vec2<i32>(coords.x - 10, coords.y), 0).xyz;
-    let y_next = textureLoad(mapping, vec2<i32>(coords.x, coords.y + 10), 0).xyz;
-    let y_prev = textureLoad(mapping, vec2<i32>(coords.x, coords.y - 10), 0).xyz;
+    let x_next = textureLoad(mapping, vec2<i32>(coords.x + delta, coords.y), 0).xyz;
+    let x_prev = textureLoad(mapping, vec2<i32>(coords.x - delta, coords.y), 0).xyz;
+    let y_next = textureLoad(mapping, vec2<i32>(coords.x, coords.y + delta), 0).xyz;
+    let y_prev = textureLoad(mapping, vec2<i32>(coords.x, coords.y - delta), 0).xyz;
     let gradient = mat2x3<f32>(
-        1.0/20.0 * (x_next - x_prev),
-        1.0/20.0 * (y_next - y_prev)
+        1.0/f32(delta * 2) * (x_next - x_prev),
+        1.0/f32(delta * 2) * (y_next - y_prev)
     );
     let m = transpose(gradient) * gradient;
     let eigen = mat2eigenvalues(m);
     let exponent = sqrt(max(eigen[0], eigen[1]));
-    let c = 10.0 * exponent;
-    textureStore(target, coords, 0.5 * vec4<f32>(c, c, c, 1.0) + 0.5 * color);
+    let c = exp(50.0 * exponent - 5.0);
+    textureStore(target, coords, c * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - c) * color);
     // textureStore(target, coords, vec4<f32>(c, c, c, 1.0));
 }
