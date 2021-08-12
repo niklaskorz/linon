@@ -130,8 +130,8 @@ fn main() -> Result<()> {
     let window = WindowBuilder::new()
         .with_title("linon")
         .with_inner_size(LogicalSize {
-            width: 1280,
-            height: 720,
+            width: 1400,
+            height: 900,
         })
         .build(&event_loop)?;
 
