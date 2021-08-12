@@ -34,10 +34,8 @@ pub struct ReferenceView {
     uniform_bind_group: wgpu::BindGroup,
     mesh_bind_group: wgpu::BindGroup,
 
-    shader: wgpu::ShaderModule,
     sample_index_buffer: wgpu::Buffer,
     sample_num_indices: u32,
-    sample_render_pipeline_layout: wgpu::PipelineLayout,
     sample_render_pipeline: wgpu::RenderPipeline,
 
     prev_pointer_pos: Option<(f32, f32)>,
@@ -238,24 +236,12 @@ impl ReferenceView {
             mesh_bind_group,
             prev_pointer_pos: None,
 
-            shader,
             sample_index_buffer,
             sample_num_indices: sample_indices.len() as u32 * 3,
-            sample_render_pipeline_layout,
             sample_render_pipeline,
 
             needs_redraw: true,
         }
-    }
-
-    pub fn update_sample_pipeline(&mut self, device: &wgpu::Device, wireframe: bool) {
-        self.sample_render_pipeline = create_sample_render_pipeline(
-            device,
-            &self.sample_render_pipeline_layout,
-            &self.shader,
-            self.texture.format,
-            wireframe,
-        );
     }
 
     fn update_camera(&mut self, queue: &wgpu::Queue) {

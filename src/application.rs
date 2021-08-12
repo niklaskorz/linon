@@ -37,7 +37,6 @@ pub struct Application {
     lyapunov_scaling: f32,
     predefined_function: PredefinedFunction,
     field_function: String,
-    wireframe: bool,
 }
 
 impl Application {
@@ -158,7 +157,6 @@ impl Application {
             lyapunov_scaling: 50.0,
             predefined_function: PredefinedFunction::MirageSpherical,
             field_function: PredefinedFunction::MirageSpherical.to_code(),
-            wireframe: false,
         })
     }
 
@@ -229,28 +227,12 @@ impl Application {
             lyapunov_scaling,
             field_function,
             predefined_function,
-            wireframe,
             ..
         } = self;
         let mut field_function_changed = false;
         let device = &self.device;
         let queue = &self.queue;
         egui::SidePanel::left("Settings", INITIAL_SIDEBAR_WIDTH).show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Field weight:");
-                if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
-                    main_view.update_settings(
-                        queue,
-                        Settings {
-                            field_weight: *field_weight,
-                            mouse_pos: *mouse_pos,
-                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
-                            central_difference_delta: *central_difference_delta,
-                            lyapunov_scaling: *lyapunov_scaling,
-                        },
-                    );
-                }
-            });
             ui.horizontal(|ui| {
                 if ui
                     .checkbox(show_lyapunov_exponent, "Show lyapunov exponent field")
@@ -292,6 +274,21 @@ impl Application {
                     .add(egui::Slider::new(lyapunov_scaling, 1.0..=100.0))
                     .changed()
                 {
+                    main_view.update_settings(
+                        queue,
+                        Settings {
+                            field_weight: *field_weight,
+                            mouse_pos: *mouse_pos,
+                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            central_difference_delta: *central_difference_delta,
+                            lyapunov_scaling: *lyapunov_scaling,
+                        },
+                    );
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Field weight:");
+                if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
                     main_view.update_settings(
                         queue,
                         Settings {
@@ -393,11 +390,6 @@ impl Application {
                 }
                 if let Some(shader_error) = shader_error {
                     ui.label(format!("Shader error: {}", shader_error));
-                }
-            });
-            ui.horizontal(|ui| {
-                if ui.checkbox(wireframe, "Ray outline as wireframe").changed() {
-                    reference_view.update_sample_pipeline(device, *wireframe);
                 }
             });
             reference_view.show(ui, device, queue);
