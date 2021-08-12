@@ -46,6 +46,7 @@ pub struct Settings {
     pub mouse_pos: [f32; 2],
     pub show_lyapunov_exponent: i32,
     pub central_difference_delta: i32,
+    pub lyapunov_scaling: f32,
 }
 
 pub struct MainView {
@@ -130,6 +131,7 @@ impl MainView {
             mouse_pos: [0.5, 0.6],
             show_lyapunov_exponent: false as i32,
             central_difference_delta: 1,
+            lyapunov_scaling: 50.0,
         };
         let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("settings_buffer"),

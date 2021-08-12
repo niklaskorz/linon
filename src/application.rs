@@ -34,6 +34,7 @@ pub struct Application {
     mouse_pos: [f32; 2],
     show_lyapunov_exponent: bool,
     central_difference_delta: i32,
+    lyapunov_scaling: f32,
     predefined_function: PredefinedFunction,
     field_function: String,
     wireframe: bool,
@@ -154,6 +155,7 @@ impl Application {
             mouse_pos: [0.5, 0.5],
             show_lyapunov_exponent: false,
             central_difference_delta: 1,
+            lyapunov_scaling: 50.0,
             predefined_function: PredefinedFunction::MirageSpherical,
             field_function: PredefinedFunction::MirageSpherical.to_code(),
             wireframe: false,
@@ -224,6 +226,7 @@ impl Application {
             mouse_pos,
             show_lyapunov_exponent,
             central_difference_delta,
+            lyapunov_scaling,
             field_function,
             predefined_function,
             wireframe,
@@ -243,6 +246,24 @@ impl Application {
                             mouse_pos: *mouse_pos,
                             show_lyapunov_exponent: *show_lyapunov_exponent as i32,
                             central_difference_delta: *central_difference_delta,
+                            lyapunov_scaling: *lyapunov_scaling,
+                        },
+                    );
+                }
+            });
+            ui.horizontal(|ui| {
+                if ui
+                    .checkbox(show_lyapunov_exponent, "Show lyapunov exponent field")
+                    .changed()
+                {
+                    main_view.update_settings(
+                        queue,
+                        Settings {
+                            field_weight: *field_weight,
+                            mouse_pos: *mouse_pos,
+                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            central_difference_delta: *central_difference_delta,
+                            lyapunov_scaling: *lyapunov_scaling,
                         },
                     );
                 }
@@ -260,6 +281,25 @@ impl Application {
                             mouse_pos: *mouse_pos,
                             show_lyapunov_exponent: *show_lyapunov_exponent as i32,
                             central_difference_delta: *central_difference_delta,
+                            lyapunov_scaling: *lyapunov_scaling,
+                        },
+                    );
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Lyapunov scaling:");
+                if ui
+                    .add(egui::Slider::new(lyapunov_scaling, 1.0..=100.0))
+                    .changed()
+                {
+                    main_view.update_settings(
+                        queue,
+                        Settings {
+                            field_weight: *field_weight,
+                            mouse_pos: *mouse_pos,
+                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            central_difference_delta: *central_difference_delta,
+                            lyapunov_scaling: *lyapunov_scaling,
                         },
                     );
                 }
@@ -360,22 +400,6 @@ impl Application {
                     reference_view.update_sample_pipeline(device, *wireframe);
                 }
             });
-            ui.horizontal(|ui| {
-                if ui
-                    .checkbox(show_lyapunov_exponent, "Show lyapunov exponent field")
-                    .changed()
-                {
-                    main_view.update_settings(
-                        queue,
-                        Settings {
-                            field_weight: *field_weight,
-                            mouse_pos: *mouse_pos,
-                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
-                            central_difference_delta: *central_difference_delta,
-                        },
-                    );
-                }
-            });
             reference_view.show(ui, device, queue);
         });
         let device = &self.device;
@@ -390,6 +414,7 @@ impl Application {
                         mouse_pos: *mouse_pos,
                         show_lyapunov_exponent: *show_lyapunov_exponent as i32,
                         central_difference_delta: *central_difference_delta,
+                        lyapunov_scaling: *lyapunov_scaling,
                     },
                 );
             }

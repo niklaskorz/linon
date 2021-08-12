@@ -21,6 +21,7 @@ struct Settings {
     mouse_pos_y: f32;
     show_lyapunov_exponent: i32;
     central_difference_delta: i32;
+    lyapunov_scaling: f32;
 };
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;

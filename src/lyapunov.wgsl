@@ -55,6 +55,7 @@ struct Settings {
     mouse_pos_y: f32;
     show_lyapunov_exponent: i32;
     central_difference_delta: i32;
+    lyapunov_scaling: f32;
 };
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
@@ -87,7 +88,7 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let m = transpose(gradient) * gradient;
     let eigen = mat2eigenvalues(m);
     let exponent = sqrt(max(eigen[0], eigen[1]));
-    let c = exp(50.0 * exponent - 5.0);
+    let c = exp(settings.lyapunov_scaling * exponent - 5.0);
     textureStore(target, coords, c * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - c) * color);
     // textureStore(target, coords, vec4<f32>(c, c, c, 1.0));
 }
