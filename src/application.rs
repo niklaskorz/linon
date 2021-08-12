@@ -1,6 +1,6 @@
 use crate::cornell_box as cbox;
 use crate::functions::PredefinedFunction;
-use crate::main_view::MainView;
+use crate::main_view::{MainView, Settings};
 use crate::reference_view::ReferenceView;
 use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
@@ -32,6 +32,8 @@ pub struct Application {
     shader_error: Option<String>,
     field_weight: f32,
     mouse_pos: [f32; 2],
+    show_lyapunov_exponent: bool,
+    central_difference_delta: i32,
     predefined_function: PredefinedFunction,
     field_function: String,
     wireframe: bool,
@@ -150,6 +152,8 @@ impl Application {
             shader_error: None,
             field_weight: 1.0,
             mouse_pos: [0.5, 0.5],
+            show_lyapunov_exponent: false,
+            central_difference_delta: 1,
             predefined_function: PredefinedFunction::MirageSpherical,
             field_function: PredefinedFunction::MirageSpherical.to_code(),
             wireframe: false,
@@ -218,6 +222,8 @@ impl Application {
             shader_error,
             field_weight,
             mouse_pos,
+            show_lyapunov_exponent,
+            central_difference_delta,
             field_function,
             predefined_function,
             wireframe,
@@ -230,7 +236,32 @@ impl Application {
             ui.horizontal(|ui| {
                 ui.label("Field weight:");
                 if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
-                    main_view.update_settings(queue, *field_weight, *mouse_pos);
+                    main_view.update_settings(
+                        queue,
+                        Settings {
+                            field_weight: *field_weight,
+                            mouse_pos: *mouse_pos,
+                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            central_difference_delta: *central_difference_delta,
+                        },
+                    );
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Central difference delta:");
+                if ui
+                    .add(egui::Slider::new(central_difference_delta, 1..=10))
+                    .changed()
+                {
+                    main_view.update_settings(
+                        queue,
+                        Settings {
+                            field_weight: *field_weight,
+                            mouse_pos: *mouse_pos,
+                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            central_difference_delta: *central_difference_delta,
+                        },
+                    );
                 }
             });
             egui::ComboBox::from_label("Predefined function")
@@ -329,6 +360,22 @@ impl Application {
                     reference_view.update_sample_pipeline(device, *wireframe);
                 }
             });
+            ui.horizontal(|ui| {
+                if ui
+                    .checkbox(show_lyapunov_exponent, "Show lyapunov exponent field")
+                    .changed()
+                {
+                    main_view.update_settings(
+                        queue,
+                        Settings {
+                            field_weight: *field_weight,
+                            mouse_pos: *mouse_pos,
+                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            central_difference_delta: *central_difference_delta,
+                        },
+                    );
+                }
+            });
             reference_view.show(ui, device, queue);
         });
         let device = &self.device;
@@ -336,7 +383,15 @@ impl Application {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(new_pos) = main_view.show(ui, rpass, device, queue) {
                 *mouse_pos = new_pos;
-                main_view.update_settings(queue, *field_weight, *mouse_pos);
+                main_view.update_settings(
+                    queue,
+                    Settings {
+                        field_weight: *field_weight,
+                        mouse_pos: *mouse_pos,
+                        show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                        central_difference_delta: *central_difference_delta,
+                    },
+                );
             }
         });
         if field_function_changed {

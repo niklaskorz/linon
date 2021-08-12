@@ -48,6 +48,17 @@ var mapping: texture_2d<f32>;
 [[group(0), binding(2)]]
 var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
 
+[[block]]
+struct Settings {
+    field_weight: f32;
+    mouse_pos_x: f32;
+    mouse_pos_y: f32;
+    show_lyapunov_exponent: i32;
+    central_difference_delta: i32;
+};
+[[group(0), binding(3)]]
+var<uniform> settings: Settings;
+
 [[stage(compute), workgroup_size(8, 8)]]
 fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let size = textureDimensions(target);
@@ -56,7 +67,11 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         return;
     }
     let color = textureLoad(ray_casting, coords, 0);
-    let delta = 2;
+    if (settings.show_lyapunov_exponent == 0) {
+        textureStore(target, coords, color);
+        return;
+    }
+    let delta = settings.central_difference_delta;
     if (coords.x < delta || coords.y < delta || coords.x >= size.x - delta || coords.y >= size.y - delta) {
         textureStore(target, coords, color);
         return;

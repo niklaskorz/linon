@@ -41,9 +41,11 @@ impl CameraUniform {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct Settings {
-    field_weight: f32,
-    mouse_pos: [f32; 2],
+pub struct Settings {
+    pub field_weight: f32,
+    pub mouse_pos: [f32; 2],
+    pub show_lyapunov_exponent: i32,
+    pub central_difference_delta: i32,
 }
 
 pub struct MainView {
@@ -126,6 +128,8 @@ impl MainView {
         let settings = Settings {
             field_weight: 1.0,
             mouse_pos: [0.5, 0.6],
+            show_lyapunov_exponent: false as i32,
+            central_difference_delta: 1,
         };
         let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("settings_buffer"),
@@ -331,6 +335,16 @@ impl MainView {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("lyapunov_bind_group_layout"),
             });
@@ -348,6 +362,10 @@ impl MainView {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(&texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: settings_buffer.as_entire_binding(),
                 },
             ],
             label: Some("lyapunov_bind_group"),
@@ -471,11 +489,7 @@ impl MainView {
         self.prev_pointer_pos = Some(pos);
     }
 
-    pub fn update_settings(&mut self, queue: &wgpu::Queue, field_weight: f32, mouse_pos: [f32; 2]) {
-        let settings = Settings {
-            field_weight,
-            mouse_pos,
-        };
+    pub fn update_settings(&mut self, queue: &wgpu::Queue, settings: Settings) {
         queue.write_buffer(&self.settings_buffer, 0, bytemuck::cast_slice(&[settings]));
         self.needs_redraw = true;
     }
@@ -551,6 +565,10 @@ impl MainView {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(&self.texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: self.settings_buffer.as_entire_binding(),
                 },
             ],
             label: Some("lyapunov_bind_group"),

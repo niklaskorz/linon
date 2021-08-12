@@ -19,6 +19,8 @@ struct Settings {
     field_weight: f32;
     mouse_pos_x: f32;
     mouse_pos_y: f32;
+    show_lyapunov_exponent: i32;
+    central_difference_delta: i32;
 };
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
