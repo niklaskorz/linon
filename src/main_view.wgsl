@@ -223,14 +223,14 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
     result.mapping_point = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     let field_weight = settings.field_weight;
-    let steps = 1000;
+    let steps = 800;
     var has_color: bool = false;
     var has_mapping_point: bool = false;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var t: f32 = 0.0;
 
-    for (var i: i32 = 0; i < steps && (!has_color || result.mapping_point.w == 0.0); i = i + 1) {
+    for (var i: i32 = 0; i < steps; i = i + 1) {
         // Runge-Kutta method
         let k1 = field_function(cur_point - cur_dir * h, cur_point, start_dir, cur_dir, t);
         let k2 = field_function(cur_point, cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
@@ -247,12 +247,9 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
 
         cur_point = cur_point + step_dir;
         t = t + h;
-
-        if (result.mapping_point.w == 0.0 && t >= 4.0) {
-            result.mapping_point = vec4<f32>(cur_point, 1.0);
-        }
     }
 
+    result.mapping_point = vec4<f32>(cur_point, 1.0);
     result.color.a = 1.0;
     if (!has_color) {
         result.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
@@ -262,7 +259,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
     let field_weight = settings.field_weight;
-    let steps = 1000;
+    let steps = 800;
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
