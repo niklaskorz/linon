@@ -16,7 +16,7 @@ struct Vertices {
     data: [[stride(12)]] array<Vertex>;
 };
 [[group(1), binding(0)]]
-var<storage> vertices: [[access(read)]] Vertices;
+var<storage, read> vertices: Vertices;
 
 struct Face {
     a: u32;
@@ -28,7 +28,7 @@ struct Faces {
     data: [[stride(12)]] array<Face>;
 };
 [[group(1), binding(1)]]
-var<storage> faces: [[access(read)]] Faces;
+var<storage, read> faces: Faces;
 
 struct VertexInput {
     [[builtin(vertex_index)]]

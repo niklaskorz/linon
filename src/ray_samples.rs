@@ -8,7 +8,7 @@ const SAMPLES_PER_POINT: u16 = 100;
 pub fn vertex_desc<'a>() -> wgpu::VertexBufferLayout<'a> {
     wgpu::VertexBufferLayout {
         array_stride: 32,
-        step_mode: wgpu::InputStepMode::Vertex,
+        step_mode: wgpu::VertexStepMode::Vertex,
         attributes: &[
             // position: vec4<f32>
             wgpu::VertexAttribute {

@@ -26,11 +26,11 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsage::SAMPLED
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | if storage {
-                    wgpu::TextureUsage::STORAGE
+                    wgpu::TextureUsages::STORAGE_BINDING
                 } else {
-                    wgpu::TextureUsage::RENDER_ATTACHMENT
+                    wgpu::TextureUsages::RENDER_ATTACHMENT
                 },
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -67,7 +67,7 @@ impl DepthTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {

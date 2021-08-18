@@ -1,8 +1,8 @@
 [[group(0), binding(0)]]
-var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
+var target: texture_storage_2d<rgba8unorm, write>;
 
 [[group(0), binding(1)]]
-var mapping: [[access(write)]] texture_storage_2d<rgba32float>;
+var mapping: texture_storage_2d<rgba32float, write>;
 
 [[block]]
 struct Camera {
@@ -36,7 +36,7 @@ struct Vertices {
     data: [[stride(12)]] array<Vertex>;
 };
 [[group(1), binding(0)]]
-var<storage> vertices: [[access(read)]] Vertices;
+var<storage, read> vertices: Vertices;
 
 struct Face {
     a: u32;
@@ -48,7 +48,7 @@ struct Faces {
     data: [[stride(12)]] array<Face>;
 };
 [[group(1), binding(1)]]
-var<storage> faces: [[access(read)]] Faces;
+var<storage, read> faces: Faces;
 
 struct RaySample {
     position: vec4<f32>;
@@ -59,7 +59,7 @@ struct RaySamples {
     data: [[stride(32)]] array<RaySample, 800>;
 };
 [[group(2), binding(0)]]
-var<storage> ray_samples: [[access(write)]] RaySamples;
+var<storage, read_write> ray_samples: RaySamples;
 
 let backface_culling: bool = false;
 

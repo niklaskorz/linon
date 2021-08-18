@@ -46,7 +46,7 @@ var ray_casting: texture_2d<f32>;
 [[group(0), binding(1)]]
 var mapping: texture_2d<f32>;
 [[group(0), binding(2)]]
-var target: [[access(write)]] texture_storage_2d<rgba8unorm>;
+var target: texture_storage_2d<rgba8unorm, write>;
 
 [[block]]
 struct Settings {

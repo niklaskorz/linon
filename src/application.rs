@@ -11,12 +11,11 @@ pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
 
 pub struct Application {
     _instance: wgpu::Instance,
+    surface_config: wgpu::SurfaceConfiguration,
     surface: wgpu::Surface,
     _adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    sc_desc: wgpu::SwapChainDescriptor,
-    swap_chain: wgpu::SwapChain,
     main_view: MainView,
     reference_view: ReferenceView,
     vertices_buffer: wgpu::Buffer,
@@ -42,7 +41,7 @@ pub struct Application {
 impl Application {
     pub async fn new(window: &Window) -> Result<Self> {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -55,24 +54,24 @@ impl Application {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::NON_FILL_POLYGON_MODE,
+                    features: wgpu::Features::default(),
                     limits: wgpu::Limits::default(),
                 },
                 None,
             )
             .await?;
 
-        let swapchain_format = adapter
-            .get_swap_chain_preferred_format(&surface)
-            .context("no compatible swap chain format found")?;
-        let sc_desc = wgpu::SwapChainDescriptor {
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            format: swapchain_format,
+        let surface_format = surface
+            .get_preferred_format(&adapter)
+            .context("no compatible surface format found")?;
+        let surface_config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
         };
-        let swap_chain = device.create_swap_chain(&surface, &sc_desc);
+        surface.configure(&device, &surface_config);
 
         let mut vertices = cbox::VERTICES;
         for i in 0..(vertices.len() / 3) {
@@ -84,20 +83,20 @@ impl Application {
         let vertices_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("vertices_buffer"),
             contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX,
         });
         let indices = cbox::INDICES;
         let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("faces_buffer"),
             contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::INDEX,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDEX,
         });
         let center = get_center(&vertices);
 
         let ray_samples_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ray_samples_buffer"),
             size: std::mem::size_of::<[[[[f32; 4]; 2]; 100]; 8]>() as u64,
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX,
             mapped_at_creation: false,
         });
 
@@ -109,7 +108,7 @@ impl Application {
                 font_definitions: egui::FontDefinitions::default(),
                 style: Default::default(),
             });
-        let mut rpass = egui_wgpu_backend::RenderPass::new(&device, swapchain_format, 1);
+        let mut rpass = egui_wgpu_backend::RenderPass::new(&device, surface_format, 1);
 
         let main_view = MainView::new(
             &mut rpass,
@@ -131,12 +130,11 @@ impl Application {
 
         Ok(Self {
             _instance: instance,
+            surface_config,
             surface,
             _adapter: adapter,
             device,
             queue,
-            sc_desc,
-            swap_chain,
             main_view,
             reference_view,
             vertices_buffer,
@@ -169,9 +167,9 @@ impl Application {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-        self.sc_desc.width = width;
-        self.sc_desc.height = height;
-        self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+        self.surface_config.width = width;
+        self.surface_config.height = height;
+        self.surface.configure(&self.device, &self.surface_config);
     }
 
     pub fn load_default_model(&mut self) {
@@ -187,14 +185,14 @@ impl Application {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices_buffer"),
                 contents: bytemuck::cast_slice(vertices),
-                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX,
             });
         self.faces_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
                 contents: bytemuck::cast_slice(indices),
-                usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::INDEX,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDEX,
             });
         self.indices = indices.len() as u32;
         let center = get_center(vertices);
@@ -232,7 +230,7 @@ impl Application {
         let mut field_function_changed = false;
         let device = &self.device;
         let queue = &self.queue;
-        egui::SidePanel::left("Settings", INITIAL_SIDEBAR_WIDTH).show(ctx, |ui| {
+        egui::SidePanel::left("Settings").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui
                     .checkbox(show_lyapunov_exponent, "Show lyapunov exponent field")
@@ -423,8 +421,11 @@ impl Application {
         }
     }
 
-    pub fn render(&mut self, scale_factor: f32) -> Result<(), wgpu::SwapChainError> {
-        let frame = self.swap_chain.get_current_frame()?.output;
+    pub fn render(&mut self, scale_factor: f32) -> Result<(), wgpu::SurfaceError> {
+        let frame = self.surface.get_current_frame()?.output;
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         self.platform
             .update_time(self.start_time.elapsed().as_secs_f64());
@@ -471,8 +472,8 @@ impl Application {
             });
 
         let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
-            physical_width: self.sc_desc.width,
-            physical_height: self.sc_desc.height,
+            physical_width: self.surface_config.width,
+            physical_height: self.surface_config.height,
             scale_factor,
         };
         self.rpass.update_texture(
@@ -484,13 +485,9 @@ impl Application {
         self.rpass
             .update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
 
-        self.rpass.execute(
-            &mut encoder,
-            &frame.view,
-            &paint_jobs,
-            &screen_descriptor,
-            None,
-        );
+        self.rpass
+            .execute(&mut encoder, &view, &paint_jobs, &screen_descriptor, None)
+            .unwrap();
 
         self.queue.submit(Some(encoder.finish()));
 

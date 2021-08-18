@@ -54,10 +54,6 @@ impl ReferenceView {
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("reference_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_src)),
-            #[cfg(not(target_arch = "wasm32"))]
-            flags: wgpu::ShaderFlags::all(),
-            #[cfg(target_arch = "wasm32")]
-            flags: wgpu::ShaderFlags::VALIDATION,
         });
 
         let dimensions = (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32);
@@ -93,14 +89,14 @@ impl ReferenceView {
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("uniform_buffer"),
             contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("uniform_bind_group_layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStage::VERTEX_FRAGMENT,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -123,7 +119,7 @@ impl ReferenceView {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::VERTEX,
+                        visibility: wgpu::ShaderStages::VERTEX,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
@@ -133,7 +129,7 @@ impl ReferenceView {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStage::VERTEX,
+                        visibility: wgpu::ShaderStages::VERTEX,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
@@ -182,7 +178,7 @@ impl ReferenceView {
                         color: wgpu::BlendComponent::REPLACE,
                         alpha: wgpu::BlendComponent::REPLACE,
                     }),
-                    write_mask: wgpu::ColorWrite::ALL,
+                    write_mask: wgpu::ColorWrites::ALL,
                 }],
             }),
             primitive: wgpu::PrimitiveState {
@@ -208,7 +204,7 @@ impl ReferenceView {
         let sample_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("sample_index_buffer"),
             contents: bytemuck::cast_slice(&sample_indices),
-            usage: wgpu::BufferUsage::INDEX,
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         let sample_render_pipeline_layout =
@@ -412,7 +408,7 @@ fn create_sample_render_pipeline(
                         operation: wgpu::BlendOperation::Max,
                     },
                 }),
-                write_mask: wgpu::ColorWrite::ALL,
+                write_mask: wgpu::ColorWrites::ALL,
             }],
         }),
         primitive: wgpu::PrimitiveState {

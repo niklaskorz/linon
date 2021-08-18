@@ -87,7 +87,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
             },
             Event::RedrawRequested(_) => {
                 if let Err(e) = app.render(window.scale_factor() as f32) {
-                    if e == wgpu::SwapChainError::Outdated {
+                    if e == wgpu::SurfaceError::Outdated {
                         let size = window.inner_size();
                         app.resize(size.width, size.height);
                     } else {
@@ -118,13 +118,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 }
 
 fn main() -> Result<()> {
-    #[cfg(not(target_arch = "wasm32"))]
     env_logger::init();
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init().expect("could not initialize logger");
-    }
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -135,25 +129,7 @@ fn main() -> Result<()> {
         })
         .build(&event_loop)?;
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        use anyhow::Context;
-        use winit::platform::web::WindowExtWebSys;
-        // On wasm, append the canvas to the document body
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| doc.body())
-            .and_then(|body| {
-                body.append_child(&web_sys::Element::from(window.canvas()))
-                    .ok()
-            })
-            .context("could not append canvas to document")?;
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
     futures::executor::block_on(run(event_loop, window));
-    #[cfg(target_arch = "wasm32")]
-    wasm_bindgen_futures::spawn_local(run(event_loop, window));
 
     Ok(())
 }
