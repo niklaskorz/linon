@@ -38,8 +38,8 @@ let center_dest = p - center;
 let normal = normalize(center_dest);
 let dist_in = length(p_prev - center);
 let dist_out = length(center_dest);
-let part_in = clamp(0.0, 1.0, dist_in / max_dist);
-let part_out = clamp(0.0, 1.0, dist_out / max_dist);
+let part_in = clamp(0.0, 1.0, sigmoid(dist_in / max_dist * 12.0 - 6.0));
+let part_out = clamp(0.0, 1.0, sigmoid(dist_out / max_dist * 12.0 - 6.0));
 let t_in = part_in * t_env + (1.0 - part_in) * t_src;
 let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 
@@ -53,8 +53,8 @@ let plane_n = vec3<f32>(0.0, 1.0, 0.0);
 
 let dist_in = point_plane_distance(p_prev, plane_n, plane_p0);
 let dist_out = point_plane_distance(p, plane_n, plane_p0);
-let part_in = clamp(0.0, 1.0, dist_in / max_dist);
-let part_out = clamp(0.0, 1.0, dist_out / max_dist);
+let part_in = clamp(0.0, 1.0, sigmoid(dist_in / max_dist * 12.0 - 6.0));
+let part_out = clamp(0.0, 1.0, sigmoid(dist_out / max_dist * 12.0 - 6.0));
 let t_in = part_in * t_env + (1.0 - part_in) * t_src;
 let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 

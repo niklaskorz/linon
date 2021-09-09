@@ -140,6 +140,10 @@ fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
     return abs(dot(p, n) - d);
 }
 
+fn sigmoid(x: f32) -> f32 {
+    return 1.0 / (1.0 + exp(-x));
+}
+
 fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }
 
 fn hit_triangle(v_in: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
