@@ -109,7 +109,7 @@ fn translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32> {
 // t: temperature in Celsius
 fn refraction_index(t: f32) -> f32 {
     // Calculation term by Y. Zhao et al
-    let air_pressure = 101325.0; // Pascal (nominal air pressure at 15°C sea level)
+    let air_pressure = 101325.0; // Pascal (nominal air pressure at 15 degrees Celsius sea level)
     let c1 = 0.0000104;
     let c2 = 0.00366;
     return c1 * air_pressure * (1.0 + air_pressure * (60.1 - 0.972 * t) * pow(10.0, -10.0)) / (1.0 + c2 * t);
