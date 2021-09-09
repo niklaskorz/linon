@@ -4,6 +4,33 @@ name: CICD
 on: [push]
 
 jobs:
+  build-web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install latest Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: Build
+        run: |
+          cargo install -f wasm-bindgen-cli --version 0.2.77
+          RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --no-default-features --target wasm32-unknown-unknown --release
+          wasm-bindgen --out-dir public --web target/wasm32-unknown-unknown/debug/linon.wasm
+
+      - name: Publish
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+
   build-linux:
     runs-on: ubuntu-latest
 
