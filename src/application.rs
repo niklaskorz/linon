@@ -329,6 +329,28 @@ impl Application {
                     if ui
                         .selectable_value(
                             predefined_function,
+                            PredefinedFunction::MirageSphericalSigmoid,
+                            PredefinedFunction::MirageSphericalSigmoid.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::MirageSphericalSigmoid.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
+                            PredefinedFunction::MiragePlaneSigmoid,
+                            PredefinedFunction::MiragePlaneSigmoid.to_string(),
+                        )
+                        .clicked()
+                    {
+                        *field_function = PredefinedFunction::MiragePlaneSigmoid.to_code();
+                        field_function_changed = true;
+                    }
+                    if ui
+                        .selectable_value(
+                            predefined_function,
                             PredefinedFunction::TranslationX,
                             PredefinedFunction::TranslationX.to_string(),
                         )
