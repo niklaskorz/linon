@@ -46,7 +46,7 @@ struct VertexOutput {
 };
 
 [[stage(vertex)]]
-fn main(input: VertexInput) -> VertexOutput {
+fn main_vertex(input: VertexInput) -> VertexOutput {
     let index = input.vertex_index / 3u;
     let face = faces.data[index];
     let a = vertices.data[face.a];
@@ -75,8 +75,15 @@ let ambient_strength: f32 = 0.01;
 let shininess: f32 = 64.0;
 let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
-[[stage(fragment)]]
-fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
+fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
+    // Based on https://gamedev.stackexchange.com/a/148088
+    let cutoff = linear_rgb < vec3<f32>(0.0031308);
+    let lower = linear_rgb / vec3<f32>(12.92);
+    let higher = vec3<f32>(1.055) * pow(linear_rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
+    return select(higher, lower, cutoff);
+}
+
+fn main_fragment_shared(input: VertexOutput) -> vec3<f32> {
     let ambient = ambient_strength * light_color;
     // The camera is the light source here, which allows for
     // some simplifications
@@ -89,8 +96,18 @@ fn main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
     let diffuse = diff * light_color;
     let spec = pow(intensity, shininess);
     let specular = spec * light_color;
-    let result = (ambient + diffuse + specular) * input.color;
-    return vec4<f32>(result, 1.0);
+    return (ambient + diffuse + specular) * input.color;
+}
+
+[[stage(fragment)]]
+fn main_fragment(input: VertexOutput) -> [[location(0)]] vec4<f32> {
+    return vec4<f32>(main_fragment_shared(input), 1.0);
+}
+
+[[stage(fragment)]]
+fn main_fragment_web(input: VertexOutput) -> [[location(0)]] vec4<f32> {
+    let linear = srgb_from_linear(main_fragment_shared(input));
+    return vec4<f32>(linear, 1.0);
 }
 
 struct SampleVertexInput {
@@ -107,7 +124,7 @@ struct SampleVertexOutput {
 };
 
 [[stage(vertex)]]
-fn sample_main(input: SampleVertexInput) -> SampleVertexOutput {
+fn sample_vertex(input: SampleVertexInput) -> SampleVertexOutput {
     var output: SampleVertexOutput;
     output.clip_position = uniforms.view_projection * input.position;
     output.color = input.color;
@@ -115,6 +132,11 @@ fn sample_main(input: SampleVertexInput) -> SampleVertexOutput {
 }
 
 [[stage(fragment)]]
-fn sample_main(input: SampleVertexOutput) -> [[location(0)]] vec4<f32> {
+fn sample_fragment(input: SampleVertexOutput) -> [[location(0)]] vec4<f32> {
     return input.color;
+}
+
+[[stage(fragment)]]
+fn sample_fragment_web(input: SampleVertexOutput) -> [[location(0)]] vec4<f32> {
+    return vec4<f32>(srgb_from_linear(input.color.rgb), input.color.a);
 }

@@ -288,7 +288,7 @@ impl MainView {
             label: Some("compute_pipeline"),
             layout: Some(&compute_pipeline_layout),
             module: &shader,
-            entry_point: "main",
+            entry_point: "main_view",
         });
 
         let lyapunov_shader_src = include_str!("lyapunov.wgsl");
@@ -374,7 +374,10 @@ impl MainView {
             label: Some("lyapunov_pipeline"),
             layout: Some(&lyapunov_pipeline_layout),
             module: &lyapunov_shader,
-            entry_point: "main",
+            #[cfg(not(target_arch = "wasm32"))]
+            entry_point: "lyapunov_desktop",
+            #[cfg(target_arch = "wasm32")]
+            entry_point: "lyapunov_web",
         });
 
         Self {
@@ -448,7 +451,10 @@ impl MainView {
     }
 
     fn on_zoom(&mut self, queue: &wgpu::Queue, delta: f32) {
+        #[cfg(not(target_arch = "wasm32"))]
         self.camera.zoom(delta, 1.0 / 60.0);
+        #[cfg(target_arch = "wasm32")]
+        self.camera.zoom(delta / 10.0, 1.0 / 60.0);
         self.update_camera(queue);
     }
 
@@ -593,7 +599,7 @@ impl MainView {
             label: Some("compute_pipeline"),
             layout: Some(&self.compute_pipeline_layout),
             module: &compute_shader,
-            entry_point: "main",
+            entry_point: "main_view",
         });
 
         device.on_uncaptured_error(|e| panic!("{}", e));

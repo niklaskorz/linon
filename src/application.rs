@@ -25,6 +25,7 @@ pub struct Application {
     // egui
     platform: egui_winit_platform::Platform,
     rpass: egui_wgpu_backend::RenderPass,
+    #[cfg(not(target_arch = "wasm32"))]
     start_time: std::time::Instant,
     previous_frame_time: Option<f32>,
     // gui state
@@ -144,6 +145,7 @@ impl Application {
             // egui
             platform,
             rpass,
+            #[cfg(not(target_arch = "wasm32"))]
             start_time: std::time::Instant::now(),
             previous_frame_time: None,
             // gui state
@@ -427,10 +429,12 @@ impl Application {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        #[cfg(not(target_arch = "wasm32"))]
         self.platform
             .update_time(self.start_time.elapsed().as_secs_f64());
 
         // Begin frame
+        #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
         self.platform.begin_frame();
 
@@ -438,11 +442,14 @@ impl Application {
         self.show();
 
         // End frame
-        let (_, paint_commands) = self.platform.end_frame();
+        let (_, paint_commands) = self.platform.end_frame(None);
         let paint_jobs = self.platform.context().tessellate(paint_commands);
 
-        let frame_time = (std::time::Instant::now() - start).as_secs_f32();
-        self.previous_frame_time = Some(frame_time);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let frame_time = (std::time::Instant::now() - start).as_secs_f32();
+            self.previous_frame_time = Some(frame_time);
+        }
 
         if self.main_view.needs_redraw || self.reference_view.needs_redraw {
             let mut encoder = self

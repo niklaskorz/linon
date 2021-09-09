@@ -1,13 +1,13 @@
 // --- begin: translated from linalg.h
 
 fn mat2det(a: mat2x2<f32>) -> f32 {
-    return a.x.x * a.y.y - a.x.y * a.y.x;
+    return a[0].x * a[1].y - a[0].y * a[1].x;
 }
 
 fn mat2invariants(m: mat2x2<f32>) -> vec2<f32> {
     return vec2<f32>(
         mat2det(m),
-        -(m.x.x + m.y.y)
+        -(m[0].x + m[1].y)
     );
 }
 
@@ -60,22 +60,14 @@ struct Settings {
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
-[[stage(compute), workgroup_size(8, 8)]]
-fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
-    let size = textureDimensions(target);
-    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
-    if (coords.x >= size.x || coords.y < 0) {
-        return;
-    }
+fn lyapunov(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
     let color = textureLoad(ray_casting, coords, 0);
     if (settings.show_lyapunov_exponent == 0) {
-        textureStore(target, coords, color);
-        return;
+        return color;
     }
     let delta = settings.central_difference_delta;
     if (coords.x < delta || coords.y < delta || coords.x >= size.x - delta || coords.y >= size.y - delta) {
-        textureStore(target, coords, color);
-        return;
+        return color;
     }
     let x_next = textureLoad(mapping, vec2<i32>(coords.x + delta, coords.y), 0).xyz;
     let x_prev = textureLoad(mapping, vec2<i32>(coords.x - delta, coords.y), 0).xyz;
@@ -89,6 +81,35 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let eigen = mat2eigenvalues(m);
     let exponent = sqrt(max(eigen[0], eigen[1]));
     let c = exp(settings.lyapunov_scaling * exponent - 5.0);
-    textureStore(target, coords, c * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - c) * color);
-    // textureStore(target, coords, vec4<f32>(c, c, c, 1.0));
+    return c * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - c) * color;
+}
+
+[[stage(compute), workgroup_size(8, 8)]]
+fn lyapunov_desktop([[builtin(global_invocation_id)]] gid: vec3<u32>) {
+    let size = textureDimensions(target);
+    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
+    if (coords.x >= size.x || coords.y < 0) {
+        return;
+    }
+    let color = lyapunov(coords, size);
+    textureStore(target, coords, color);
+}
+
+fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
+    // Based on https://gamedev.stackexchange.com/a/148088
+    let cutoff = linear_rgb < vec3<f32>(0.0031308);
+    let lower = linear_rgb / vec3<f32>(12.92);
+    let higher = vec3<f32>(1.055) * pow(linear_rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
+    return select(higher, lower, cutoff);
+}
+
+[[stage(compute), workgroup_size(8, 8)]]
+fn lyapunov_web([[builtin(global_invocation_id)]] gid: vec3<u32>) {
+    let size = textureDimensions(target);
+    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
+    if (coords.x >= size.x || coords.y < 0) {
+        return;
+    }
+    let color = lyapunov(coords, size);
+    textureStore(target, coords, vec4<f32>(srgb_from_linear(color.rgb), color.a));
 }

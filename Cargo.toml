@@ -9,16 +9,30 @@ resolver = "2"
 
 [dependencies]
 image = "0.23"
-winit = "0.25"
+winit = { version = "0.25", features = ["web-sys"] }
 cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
-notify = "5.0.0-pre.9"
 tobj = "3.0"
-egui = "0.13"
-egui_winit_platform = "0.9"
-egui_wgpu_backend = "0.11"
+egui = "0.14"
+egui_winit_platform = "0.10"
 wgpu = "0.10"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+notify = "5.0.0-pre.12"
 env_logger = "0.9"
+egui_wgpu_backend = "0.12"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.77"
+wasm-bindgen-futures = "0.4.27"
+web-sys = "0.3.22"
+console_error_panic_hook = "0.1.6"
+console_log = "0.2.0"
+egui_wgpu_backend = { version = "0.12", features = ["web"] }
+
+[patch.crates-io]
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "180dc27144cb0618eba34238000f6396af4d0820" }
+egui_wgpu_backend = { git = "https://github.com/niklaskorz/egui_wgpu_backend.git", rev = "325375246b24f11030dc8e319cfa5e397c9008dd" }

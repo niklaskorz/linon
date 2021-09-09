@@ -142,17 +142,17 @@ fn point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32 {
 
 fn field_function(p_prev: vec3<f32>, p: vec3<f32>, v0: vec3<f32>, v: vec3<f32>, t: f32) -> vec3<f32> { return v; }
 
-fn hit_triangle(v: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
-    // Möller-Trumbore intersection algorithm
-    let edge1 = v[1] - v[0];
-    let edge2 = v[2] - v[0];
+fn hit_triangle(v_in: array<vec3<f32>, 3>, origin: vec3<f32>, direction: vec3<f32>) -> f32 {
+    // Moeller-Trumbore intersection algorithm
+    let edge1 = v_in[1] - v_in[0];
+    let edge2 = v_in[2] - v_in[0];
     let h = cross(direction, edge2);
     let a = dot(edge1, h);
     if ((backface_culling || a > -eps) && a < eps) {
         return -1.0;
     }
     let f = 1.0 / a;
-    let s = origin - v[0];
+    let s = origin - v_in[0];
     let u = f * dot(s, h);
     if (u < 0.0 || u > 1.0) {
         return -1.0;
@@ -214,7 +214,7 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.005;
+let h: f32 = 0.05; // 0.005
 
 struct NonlinearRayColorResult {
     color: vec4<f32>;
@@ -226,7 +226,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
     result.mapping_point = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     let field_weight = settings.field_weight;
-    let steps = 800;
+    let steps = 100; // 800
     var has_color: bool = false;
     var has_mapping_point: bool = false;
     var cur_point: vec3<f32> = start_point;
@@ -262,7 +262,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
     let field_weight = settings.field_weight;
-    let steps = 800;
+    let steps = 100; // 800
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
@@ -295,7 +295,7 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
     }
 }
 
-var sample_positions: array<vec2<f32>, 8> = array<vec2<f32>, 8>(
+var<private> sample_positions: array<vec2<f32>, 8> = array<vec2<f32>, 8>(
     vec2<f32>(-1.0, -1.0), // 0: (0, 0)
     vec2<f32>(0.0, -1.0), // 1: (1, 0)
     vec2<f32>(1.0, -1.0), // 2: (2, 0)
@@ -305,7 +305,7 @@ var sample_positions: array<vec2<f32>, 8> = array<vec2<f32>, 8>(
     vec2<f32>(-1.0, 1.0), // 6: (0, 2)
     vec2<f32>(-1.0, 0.0), // 7: (1, 2)
 );
-var sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
+var<private> sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
     vec3<f32>(1.0, 0.0, 0.0),
     vec3<f32>(0.5, 0.5, 0.0),
     vec3<f32>(0.0, 1.0, 0.0),
@@ -317,7 +317,7 @@ var sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
 );
 
 [[stage(compute), workgroup_size(8, 8)]]
-fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
+fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let size = textureDimensions(target);
     let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
@@ -360,10 +360,10 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         let mouse_pos = vec2<f32>(settings.mouse_pos_x, settings.mouse_pos_y);
         let pos = mouse_pos + 0.01 * sample_positions[i32(gid.x)];
         let color = sample_colors[i32(gid.x)];
-        let u = pos.x * viewport_width - 0.5 * viewport_width;
-        let v = pos.y * viewport_height - 0.5 * viewport_height;
-        let s = u * normalize(horizontal) + v * normalize(vertical) + focal_length * view_direction;
-        let dir = normalize(s);
-        sample_rays(origin, dir, coords.x, color);
+        let u2 = pos.x * viewport_width - 0.5 * viewport_width;
+        let v2 = pos.y * viewport_height - 0.5 * viewport_height;
+        let s2 = u2 * normalize(horizontal) + v2 * normalize(vertical) + focal_length * view_direction;
+        let dir2 = normalize(s2);
+        sample_rays(origin, dir2, coords.x, color);
     }
 }

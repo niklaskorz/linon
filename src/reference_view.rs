@@ -166,12 +166,15 @@ impl ReferenceView {
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "main",
+                entry_point: "main_vertex",
                 buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "main",
+                #[cfg(not(target_arch = "wasm32"))]
+                entry_point: "main_fragment",
+                #[cfg(target_arch = "wasm32")]
+                entry_point: "main_fragment_web",
                 targets: &[wgpu::ColorTargetState {
                     format: texture.format,
                     blend: Some(wgpu::BlendState {
@@ -263,7 +266,10 @@ impl ReferenceView {
     }
 
     fn on_zoom(&mut self, queue: &wgpu::Queue, delta: f32) {
+        #[cfg(not(target_arch = "wasm32"))]
         self.camera.zoom(delta, 1.0 / 60.0);
+        #[cfg(target_arch = "wasm32")]
+        self.camera.zoom(delta / 10.0, 1.0 / 60.0);
         self.update_camera(queue);
     }
 
@@ -388,12 +394,15 @@ fn create_sample_render_pipeline(
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module: shader,
-            entry_point: "sample_main",
+            entry_point: "sample_vertex",
             buffers: &[vertex_desc()],
         },
         fragment: Some(wgpu::FragmentState {
             module: shader,
-            entry_point: "sample_main",
+            #[cfg(not(target_arch = "wasm32"))]
+            entry_point: "sample_fragment",
+            #[cfg(target_arch = "wasm32")]
+            entry_point: "sample_fragment_web",
             targets: &[wgpu::ColorTargetState {
                 format: texture_format,
                 blend: Some(wgpu::BlendState {
