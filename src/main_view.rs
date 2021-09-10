@@ -63,9 +63,9 @@ pub struct MainView {
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
     ray_samples_bind_group: wgpu::BindGroup,
-    lyapunov_bind_group_layout: wgpu::BindGroupLayout,
-    lyapunov_bind_group: wgpu::BindGroup,
-    lyapunov_pipeline: wgpu::ComputePipeline,
+    ridge_extraction_bind_group_layout: wgpu::BindGroupLayout,
+    ridge_extraction_bind_group: wgpu::BindGroup,
+    ridge_extraction_pipeline: wgpu::ComputePipeline,
     settings_buffer: wgpu::Buffer,
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
@@ -291,12 +291,12 @@ impl MainView {
             entry_point: "main_view",
         });
 
-        let lyapunov_shader_src = include_str!("lyapunov.wgsl");
-        let lyapunov_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: Some("lyapunov_shader"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(lyapunov_shader_src)),
+        let ridge_extraction_shader_src = include_str!("ridge_extraction.wgsl");
+        let ridge_extraction_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("ridge_extraction_shader"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(ridge_extraction_shader_src)),
         });
-        let lyapunov_bind_group_layout =
+        let ridge_extraction_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -340,10 +340,10 @@ impl MainView {
                         count: None,
                     },
                 ],
-                label: Some("lyapunov_bind_group_layout"),
+                label: Some("ridge_extraction_bind_group_layout"),
             });
-        let lyapunov_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &lyapunov_bind_group_layout,
+        let ridge_extraction_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &ridge_extraction_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -362,23 +362,24 @@ impl MainView {
                     resource: settings_buffer.as_entire_binding(),
                 },
             ],
-            label: Some("lyapunov_bind_group"),
+            label: Some("ridge_extraction_bind_group"),
         });
-        let lyapunov_pipeline_layout =
+        let ridge_extraction_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("lyapunov_pipeline_layout"),
-                bind_group_layouts: &[&lyapunov_bind_group_layout],
+                label: Some("ridge_extraction_pipeline_layout"),
+                bind_group_layouts: &[&ridge_extraction_bind_group_layout],
                 push_constant_ranges: &[],
             });
-        let lyapunov_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("lyapunov_pipeline"),
-            layout: Some(&lyapunov_pipeline_layout),
-            module: &lyapunov_shader,
-            #[cfg(not(target_arch = "wasm32"))]
-            entry_point: "lyapunov_desktop",
-            #[cfg(target_arch = "wasm32")]
-            entry_point: "lyapunov_web",
-        });
+        let ridge_extraction_pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("ridge_extraction_pipeline"),
+                layout: Some(&ridge_extraction_pipeline_layout),
+                module: &ridge_extraction_shader,
+                #[cfg(not(target_arch = "wasm32"))]
+                entry_point: "ridge_extraction_desktop",
+                #[cfg(target_arch = "wasm32")]
+                entry_point: "ridge_extraction_web",
+            });
 
         Self {
             texture,
@@ -394,9 +395,9 @@ impl MainView {
             mesh_bind_group_layout,
             mesh_bind_group,
             ray_samples_bind_group,
-            lyapunov_bind_group_layout,
-            lyapunov_bind_group,
-            lyapunov_pipeline,
+            ridge_extraction_bind_group_layout,
+            ridge_extraction_bind_group,
+            ridge_extraction_pipeline,
             settings_buffer,
 
             camera_buffer,
@@ -551,8 +552,8 @@ impl MainView {
             ],
             label: Some("compute_bind_group"),
         });
-        self.lyapunov_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.lyapunov_bind_group_layout,
+        self.ridge_extraction_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.ridge_extraction_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -571,7 +572,7 @@ impl MainView {
                     resource: self.settings_buffer.as_entire_binding(),
                 },
             ],
-            label: Some("lyapunov_bind_group"),
+            label: Some("ridge_extraction_bind_group"),
         });
         self.camera.update_screen(width as f32, height as f32);
         self.update_camera(queue);
@@ -676,8 +677,8 @@ impl MainView {
         cpass.set_bind_group(2, &self.ray_samples_bind_group, &[]);
         cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
 
-        cpass.set_pipeline(&self.lyapunov_pipeline);
-        cpass.set_bind_group(0, &self.lyapunov_bind_group, &[]);
+        cpass.set_pipeline(&self.ridge_extraction_pipeline);
+        cpass.set_bind_group(0, &self.ridge_extraction_bind_group, &[]);
         cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
 
         self.needs_redraw = false;
