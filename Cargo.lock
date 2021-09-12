@@ -566,7 +566,7 @@ dependencies = [
 [[package]]
 name = "egui_wgpu_backend"
 version = "0.12.0"
-source = "git+https://github.com/niklaskorz/egui_wgpu_backend.git?rev=cc27e66a6287551bf1eb0173d69c396f1bbebd4b#cc27e66a6287551bf1eb0173d69c396f1bbebd4b"
+source = "git+https://github.com/hasenbanck/egui_wgpu_backend.git?rev=74f63a071ff6578688f18d8091bf549d417b2c8f#74f63a071ff6578688f18d8091bf549d417b2c8f"
 dependencies = [
  "bytemuck",
  "epi",
@@ -1206,7 +1206,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.6.0"
-source = "git+https://github.com/gfx-rs/naga?rev=e226cf3#e226cf3f1d67d0bf91587e392879f0aee109ec42"
+source = "git+https://github.com/gfx-rs/naga?rev=130f802#130f802c89d488b719a0e494f3e1ea9ba6f5ba92"
 dependencies = [
  "bit-set",
  "bitflags",
@@ -2023,7 +2023,7 @@ checksum = "d8b77fdfd5a253be4ab714e4ffa3c49caf146b4de743e97510c0656cf90f1e8e"
 [[package]]
 name = "wgpu"
 version = "0.10.1"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=180dc27144cb0618eba34238000f6396af4d0820#180dc27144cb0618eba34238000f6396af4d0820"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=fc1cb5eb20ebe06bf3954b79dd682b65406f113c#fc1cb5eb20ebe06bf3954b79dd682b65406f113c"
 dependencies = [
  "arrayvec",
  "js-sys",
@@ -2042,7 +2042,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.10.0"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=180dc27144cb0618eba34238000f6396af4d0820#180dc27144cb0618eba34238000f6396af4d0820"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=fc1cb5eb20ebe06bf3954b79dd682b65406f113c#fc1cb5eb20ebe06bf3954b79dd682b65406f113c"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -2063,7 +2063,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.10.1"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=180dc27144cb0618eba34238000f6396af4d0820#180dc27144cb0618eba34238000f6396af4d0820"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=fc1cb5eb20ebe06bf3954b79dd682b65406f113c#fc1cb5eb20ebe06bf3954b79dd682b65406f113c"
 dependencies = [
  "arrayvec",
  "ash",
@@ -2096,7 +2096,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.10.0"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=180dc27144cb0618eba34238000f6396af4d0820#180dc27144cb0618eba34238000f6396af4d0820"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=fc1cb5eb20ebe06bf3954b79dd682b65406f113c#fc1cb5eb20ebe06bf3954b79dd682b65406f113c"
 dependencies = [
  "bitflags",
 ]
