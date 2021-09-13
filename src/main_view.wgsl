@@ -45,7 +45,6 @@ struct Face {
 };
 [[block]]
 struct Faces {
-    length: u32;
     data: [[stride(12)]] array<Face>;
 };
 [[group(1), binding(1)]]
@@ -179,7 +178,7 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     var t_new: f32;
     var d1: vec3<f32>;
     var d2: vec3<f32>;
-    for (var i: u32 = 0u; i < faces.length; i = i + 1u) {
+    for (var i: u32 = 0u; i < arrayLength(&faces.data); i = i + 1u) {
         let face = faces.data[i];
         let a = vertices.data[face.a];
         let b = vertices.data[face.b];

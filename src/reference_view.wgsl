@@ -25,7 +25,6 @@ struct Face {
 };
 [[block]]
 struct Faces {
-    length: u32;
     data: [[stride(12)]] array<Face>;
 };
 [[group(1), binding(1)]]

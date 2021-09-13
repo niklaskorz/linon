@@ -89,7 +89,7 @@ impl Application {
         let indices = cbox::INDICES;
         let faces_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("faces_buffer"),
-            contents: bytemuck::cast_slice(&[&[indices.len() as u32][..], &indices[..]].concat()),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDEX,
         });
         let center = get_center(&vertices);
@@ -193,9 +193,7 @@ impl Application {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("faces_buffer"),
-                contents: bytemuck::cast_slice(
-                    &[&[indices.len() as u32][..], &indices[..]].concat(),
-                ),
+                contents: bytemuck::cast_slice(indices),
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDEX,
             });
         self.indices = indices.len() as u32;
