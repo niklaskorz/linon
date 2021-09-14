@@ -249,6 +249,9 @@ impl Application {
                         },
                     );
                 }
+                if ui.button("Enhance!").clicked() {
+                    main_view.render_high_accuracy(device, queue, field_function.clone());
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Central difference delta:");

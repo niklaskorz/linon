@@ -218,7 +218,8 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.05; // 0.005
+let h: f32 = 0.05;
+let steps: i32 = 100;
 
 struct NonlinearRayColorResult {
     color: vec4<f32>;
@@ -230,7 +231,6 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
     result.mapping_point = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     let field_weight = settings.field_weight;
-    let steps = 100; // 800
     var has_color: bool = false;
     var has_mapping_point: bool = false;
     var cur_point: vec3<f32> = start_point;
@@ -266,7 +266,6 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
 
 fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32, sample_color: vec3<f32>) {
     let field_weight = settings.field_weight;
-    let steps = 100; // 800
     var cur_point: vec3<f32> = start_point;
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;

@@ -665,6 +665,33 @@ impl MainView {
         mouse_pos
     }
 
+    pub fn render_high_accuracy(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        field_function: String,
+    ) {
+        let original_shader_src = self.shader_src.clone();
+        let high_accuracy_shader_src = self
+            .shader_src
+            .replace("let h: f32 = 0.05;", "let h: f32 = 0.001;")
+            .replace("let steps: i32 = 100;", "let steps: i32 = 4000;");
+        self.reload_shader(
+            device,
+            Some(&high_accuracy_shader_src),
+            field_function.clone(),
+        )
+        .unwrap();
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("high_accuracy_encoder"),
+        });
+        self.render(&mut encoder);
+        queue.submit(Some(encoder.finish()));
+        self.reload_shader(device, Some(&original_shader_src), field_function.clone())
+            .unwrap();
+        self.needs_redraw = false; // prevent redraw from shader reload
+    }
+
     pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder) {
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("cpass"),
