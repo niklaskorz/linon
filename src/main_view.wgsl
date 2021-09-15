@@ -19,7 +19,7 @@ struct Settings {
     field_weight: f32;
     mouse_pos_x: f32;
     mouse_pos_y: f32;
-    show_lyapunov_exponent: i32;
+    overlay_mode: i32;
     central_difference_delta: i32;
     lyapunov_scaling: f32;
 };
