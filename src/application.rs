@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::cornell_box as cbox;
 use crate::functions::PredefinedFunction;
 use crate::main_view::{MainView, Settings};
@@ -8,6 +10,24 @@ use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum OverlayMode {
+    Disabled = 0,
+    LyapunovExponents = 1,
+    RidgeExtraction = 2,
+}
+
+impl Display for OverlayMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Self::Disabled => "Disabled",
+            Self::LyapunovExponents => "Lyapunov exponents",
+            Self::RidgeExtraction => "Ridge extraction",
+        };
+        write!(f, "{}", text)
+    }
+}
 
 pub struct Application {
     _instance: wgpu::Instance,
@@ -32,7 +52,7 @@ pub struct Application {
     shader_error: Option<String>,
     field_weight: f32,
     mouse_pos: [f32; 2],
-    show_lyapunov_exponent: bool,
+    overlay_mode: OverlayMode,
     central_difference_delta: i32,
     lyapunov_scaling: f32,
     predefined_function: PredefinedFunction,
@@ -152,7 +172,7 @@ impl Application {
             shader_error: None,
             field_weight: 1.0,
             mouse_pos: [0.5, 0.5],
-            show_lyapunov_exponent: false,
+            overlay_mode: OverlayMode::Disabled,
             central_difference_delta: 1,
             lyapunov_scaling: 50.0,
             predefined_function: PredefinedFunction::MirageSpherical,
@@ -222,7 +242,7 @@ impl Application {
             shader_error,
             field_weight,
             mouse_pos,
-            show_lyapunov_exponent,
+            overlay_mode,
             central_difference_delta,
             lyapunov_scaling,
             field_function,
@@ -234,16 +254,39 @@ impl Application {
         let queue = &self.queue;
         egui::SidePanel::left("Settings").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if ui
-                    .checkbox(show_lyapunov_exponent, "Show lyapunov exponent field")
-                    .changed()
+                if egui::ComboBox::from_label("Overlay")
+                    .selected_text(*overlay_mode)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            overlay_mode,
+                            OverlayMode::Disabled,
+                            OverlayMode::Disabled,
+                        )
+                        .clicked()
+                            || ui
+                                .selectable_value(
+                                    overlay_mode,
+                                    OverlayMode::LyapunovExponents,
+                                    OverlayMode::LyapunovExponents,
+                                )
+                                .clicked()
+                            || ui
+                                .selectable_value(
+                                    overlay_mode,
+                                    OverlayMode::RidgeExtraction,
+                                    OverlayMode::RidgeExtraction,
+                                )
+                                .clicked()
+                    })
+                    .inner
+                    .unwrap_or(false)
                 {
                     main_view.update_settings(
                         queue,
                         Settings {
                             field_weight: *field_weight,
                             mouse_pos: *mouse_pos,
-                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            overlay_mode: *overlay_mode as i32,
                             central_difference_delta: *central_difference_delta,
                             lyapunov_scaling: *lyapunov_scaling,
                         },
@@ -253,42 +296,46 @@ impl Application {
                     main_view.render_high_accuracy(device, queue, field_function.clone());
                 }
             });
-            ui.horizontal(|ui| {
-                ui.label("Central difference delta:");
-                if ui
-                    .add(egui::Slider::new(central_difference_delta, 1..=10))
-                    .changed()
-                {
-                    main_view.update_settings(
-                        queue,
-                        Settings {
-                            field_weight: *field_weight,
-                            mouse_pos: *mouse_pos,
-                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
-                            central_difference_delta: *central_difference_delta,
-                            lyapunov_scaling: *lyapunov_scaling,
-                        },
-                    );
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Lyapunov scaling:");
-                if ui
-                    .add(egui::Slider::new(lyapunov_scaling, 1.0..=100.0))
-                    .changed()
-                {
-                    main_view.update_settings(
-                        queue,
-                        Settings {
-                            field_weight: *field_weight,
-                            mouse_pos: *mouse_pos,
-                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
-                            central_difference_delta: *central_difference_delta,
-                            lyapunov_scaling: *lyapunov_scaling,
-                        },
-                    );
-                }
-            });
+            if *overlay_mode != OverlayMode::Disabled {
+                ui.horizontal(|ui| {
+                    ui.label("Central difference delta:");
+                    if ui
+                        .add(egui::Slider::new(central_difference_delta, 1..=10))
+                        .changed()
+                    {
+                        main_view.update_settings(
+                            queue,
+                            Settings {
+                                field_weight: *field_weight,
+                                mouse_pos: *mouse_pos,
+                                overlay_mode: *overlay_mode as i32,
+                                central_difference_delta: *central_difference_delta,
+                                lyapunov_scaling: *lyapunov_scaling,
+                            },
+                        );
+                    }
+                });
+            }
+            if *overlay_mode == OverlayMode::LyapunovExponents {
+                ui.horizontal(|ui| {
+                    ui.label("Lyapunov scaling:");
+                    if ui
+                        .add(egui::Slider::new(lyapunov_scaling, 1.0..=100.0))
+                        .changed()
+                    {
+                        main_view.update_settings(
+                            queue,
+                            Settings {
+                                field_weight: *field_weight,
+                                mouse_pos: *mouse_pos,
+                                overlay_mode: *overlay_mode as i32,
+                                central_difference_delta: *central_difference_delta,
+                                lyapunov_scaling: *lyapunov_scaling,
+                            },
+                        );
+                    }
+                });
+            }
             ui.horizontal(|ui| {
                 ui.label("Field weight:");
                 if ui.add(egui::Slider::new(field_weight, 0.0..=1.0)).changed() {
@@ -297,7 +344,7 @@ impl Application {
                         Settings {
                             field_weight: *field_weight,
                             mouse_pos: *mouse_pos,
-                            show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                            overlay_mode: *overlay_mode as i32,
                             central_difference_delta: *central_difference_delta,
                             lyapunov_scaling: *lyapunov_scaling,
                         },
@@ -429,7 +476,7 @@ impl Application {
                     Settings {
                         field_weight: *field_weight,
                         mouse_pos: *mouse_pos,
-                        show_lyapunov_exponent: *show_lyapunov_exponent as i32,
+                        overlay_mode: *overlay_mode as i32,
                         central_difference_delta: *central_difference_delta,
                         lyapunov_scaling: *lyapunov_scaling,
                     },

@@ -44,7 +44,7 @@ impl CameraUniform {
 pub struct Settings {
     pub field_weight: f32,
     pub mouse_pos: [f32; 2],
-    pub show_lyapunov_exponent: i32,
+    pub overlay_mode: i32,
     pub central_difference_delta: i32,
     pub lyapunov_scaling: f32,
 }
@@ -63,9 +63,9 @@ pub struct MainView {
     mesh_bind_group_layout: wgpu::BindGroupLayout,
     mesh_bind_group: wgpu::BindGroup,
     ray_samples_bind_group: wgpu::BindGroup,
-    ridge_extraction_bind_group_layout: wgpu::BindGroupLayout,
-    ridge_extraction_bind_group: wgpu::BindGroup,
-    ridge_extraction_pipeline: wgpu::ComputePipeline,
+    overlay_bind_group_layout: wgpu::BindGroupLayout,
+    overlay_bind_group: wgpu::BindGroup,
+    overlay_pipeline: wgpu::ComputePipeline,
     settings_buffer: wgpu::Buffer,
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
@@ -125,7 +125,7 @@ impl MainView {
         let settings = Settings {
             field_weight: 1.0,
             mouse_pos: [0.5, 0.6],
-            show_lyapunov_exponent: false as i32,
+            overlay_mode: 0,
             central_difference_delta: 1,
             lyapunov_scaling: 50.0,
         };
@@ -291,12 +291,12 @@ impl MainView {
             entry_point: "main_view",
         });
 
-        let ridge_extraction_shader_src = include_str!("ridge_extraction.wgsl");
-        let ridge_extraction_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: Some("ridge_extraction_shader"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(ridge_extraction_shader_src)),
+        let overlay_shader_src = include_str!("overlay.wgsl");
+        let overlay_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("overlay_shader"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(overlay_shader_src)),
         });
-        let ridge_extraction_bind_group_layout =
+        let overlay_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -340,10 +340,10 @@ impl MainView {
                         count: None,
                     },
                 ],
-                label: Some("ridge_extraction_bind_group_layout"),
+                label: Some("overlay_bind_group_layout"),
             });
-        let ridge_extraction_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &ridge_extraction_bind_group_layout,
+        let overlay_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &overlay_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -362,24 +362,23 @@ impl MainView {
                     resource: settings_buffer.as_entire_binding(),
                 },
             ],
-            label: Some("ridge_extraction_bind_group"),
+            label: Some("overlay_bind_group"),
         });
-        let ridge_extraction_pipeline_layout =
+        let overlay_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("ridge_extraction_pipeline_layout"),
-                bind_group_layouts: &[&ridge_extraction_bind_group_layout],
+                label: Some("overlay_pipeline_layout"),
+                bind_group_layouts: &[&overlay_bind_group_layout],
                 push_constant_ranges: &[],
             });
-        let ridge_extraction_pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("ridge_extraction_pipeline"),
-                layout: Some(&ridge_extraction_pipeline_layout),
-                module: &ridge_extraction_shader,
-                #[cfg(not(target_arch = "wasm32"))]
-                entry_point: "ridge_extraction_desktop",
-                #[cfg(target_arch = "wasm32")]
-                entry_point: "ridge_extraction_web",
-            });
+        let overlay_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("overlay_pipeline"),
+            layout: Some(&overlay_pipeline_layout),
+            module: &overlay_shader,
+            #[cfg(not(target_arch = "wasm32"))]
+            entry_point: "overlay_desktop",
+            #[cfg(target_arch = "wasm32")]
+            entry_point: "overlay_web",
+        });
 
         Self {
             texture,
@@ -395,9 +394,9 @@ impl MainView {
             mesh_bind_group_layout,
             mesh_bind_group,
             ray_samples_bind_group,
-            ridge_extraction_bind_group_layout,
-            ridge_extraction_bind_group,
-            ridge_extraction_pipeline,
+            overlay_bind_group_layout,
+            overlay_bind_group,
+            overlay_pipeline,
             settings_buffer,
 
             camera_buffer,
@@ -552,8 +551,8 @@ impl MainView {
             ],
             label: Some("compute_bind_group"),
         });
-        self.ridge_extraction_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.ridge_extraction_bind_group_layout,
+        self.overlay_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.overlay_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -572,7 +571,7 @@ impl MainView {
                     resource: self.settings_buffer.as_entire_binding(),
                 },
             ],
-            label: Some("ridge_extraction_bind_group"),
+            label: Some("overlay_bind_group"),
         });
         self.camera.update_screen(width as f32, height as f32);
         self.update_camera(queue);
@@ -674,8 +673,8 @@ impl MainView {
         let original_shader_src = self.shader_src.clone();
         let high_accuracy_shader_src = self
             .shader_src
-            .replace("let h: f32 = 0.05;", "let h: f32 = 0.001;")
-            .replace("let steps: i32 = 100;", "let steps: i32 = 4000;");
+            .replace("let h: f32 = 0.005;", "let h: f32 = 0.001;")
+            .replace("let steps: i32 = 1000;", "let steps: i32 = 4000;");
         self.reload_shader(
             device,
             Some(&high_accuracy_shader_src),
@@ -704,8 +703,8 @@ impl MainView {
         cpass.set_bind_group(2, &self.ray_samples_bind_group, &[]);
         cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
 
-        cpass.set_pipeline(&self.ridge_extraction_pipeline);
-        cpass.set_bind_group(0, &self.ridge_extraction_bind_group, &[]);
+        cpass.set_pipeline(&self.overlay_pipeline);
+        cpass.set_bind_group(0, &self.overlay_bind_group, &[]);
         cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
 
         self.needs_redraw = false;

@@ -1,4 +1,5 @@
-// --- begin: translated from linalg.h
+// --- begin: translated from linalg.h (originally in C / GLSL)
+// Linear Algebra Library by Ronald Peikert (CGL ETH Zurich)
 
 fn mat2det(a: mat2x2<f32>) -> f32 {
     return a[0].x * a[1].y - a[0].y * a[1].x;
@@ -83,18 +84,18 @@ struct Settings {
     field_weight: f32;
     mouse_pos_x: f32;
     mouse_pos_y: f32;
-    show_lyapunov_exponent: i32;
+    overlay_mode: i32;
     central_difference_delta: i32;
     lyapunov_scaling: f32;
 };
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
-fn lyapunov_exponent(delta: i32, coords: vec2<i32>) -> f32 {
-    let x_next = textureLoad(mapping, coords + vec2<i32>(1, 0), 0).xyz;
-    let x_prev = textureLoad(mapping, coords - vec2<i32>(1, 0), 0).xyz;
-    let y_next = textureLoad(mapping, coords + vec2<i32>(0, 1), 0).xyz;
-    let y_prev = textureLoad(mapping, coords - vec2<i32>(0, 0), 0).xyz;
+fn lyapunov_exponent(coords: vec2<i32>) -> f32 {
+    let x_next = textureLoad(mapping, coords + vec2<i32>(settings.central_difference_delta, 0), 0).xyz;
+    let x_prev = textureLoad(mapping, coords - vec2<i32>(settings.central_difference_delta, 0), 0).xyz;
+    let y_next = textureLoad(mapping, coords + vec2<i32>(0, settings.central_difference_delta), 0).xyz;
+    let y_prev = textureLoad(mapping, coords - vec2<i32>(0, settings.central_difference_delta), 0).xyz;
     let gradient = mat2x3<f32>(
         0.5 * (x_next - x_prev),
         0.5 * (y_next - y_prev)
@@ -106,38 +107,38 @@ fn lyapunov_exponent(delta: i32, coords: vec2<i32>) -> f32 {
 }
 
 fn f_x(coords: vec2<i32>) -> f32 {
-    let x_next = lyapunov_exponent(1, coords + vec2<i32>(1, 0));
-    let x_prev = lyapunov_exponent(1, coords - vec2<i32>(1, 0));
+    let x_next = lyapunov_exponent(coords + vec2<i32>(settings.central_difference_delta, 0));
+    let x_prev = lyapunov_exponent(coords - vec2<i32>(settings.central_difference_delta, 0));
     return 0.5 * (x_next - x_prev);
 }
 
 fn f_y(coords: vec2<i32>) -> f32 {
-    let y_next = lyapunov_exponent(1, coords + vec2<i32>(0, 1));
-    let y_prev = lyapunov_exponent(1, coords - vec2<i32>(0, 1));
+    let y_next = lyapunov_exponent(coords + vec2<i32>(0, settings.central_difference_delta));
+    let y_prev = lyapunov_exponent(coords - vec2<i32>(0, settings.central_difference_delta));
     return 0.5 * (y_next - y_prev);
 }
 
 fn f_x_x(coords: vec2<i32>) -> f32 {
-    let x_next = f_x(coords + vec2<i32>(1, 0));
-    let x_prev = f_x(coords - vec2<i32>(1, 0));
+    let x_next = f_x(coords + vec2<i32>(settings.central_difference_delta, 0));
+    let x_prev = f_x(coords - vec2<i32>(settings.central_difference_delta, 0));
     return 0.5 * (x_next - x_prev);
 }
 
 fn f_x_y(coords: vec2<i32>) -> f32 {
-    let y_next = f_x(coords + vec2<i32>(0, 1));
-    let y_prev = f_x(coords - vec2<i32>(0, 1));
+    let y_next = f_x(coords + vec2<i32>(0, settings.central_difference_delta));
+    let y_prev = f_x(coords - vec2<i32>(0, settings.central_difference_delta));
     return 0.5 * (y_next - y_prev);
 }
 
 fn f_y_x(coords: vec2<i32>) -> f32 {
-    let x_next = f_y(coords + vec2<i32>(1, 0));
-    let x_prev = f_y(coords - vec2<i32>(1, 0));
+    let x_next = f_y(coords + vec2<i32>(settings.central_difference_delta, 0));
+    let x_prev = f_y(coords - vec2<i32>(settings.central_difference_delta, 0));
     return 0.5 * (x_next - x_prev);
 }
 
 fn f_y_y(coords: vec2<i32>) -> f32 {
-    let y_next = f_y(coords + vec2<i32>(0, 1));
-    let y_prev = f_y(coords - vec2<i32>(0, 1));
+    let y_next = f_y(coords + vec2<i32>(0, settings.central_difference_delta));
+    let y_prev = f_y(coords - vec2<i32>(0, settings.central_difference_delta));
     return 0.5 * (y_next - y_prev);
 }
 
@@ -148,9 +149,26 @@ fn hessian(coords: vec2<i32>) -> mat2x2<f32> {
     );
 }
 
-fn ridge_extraction(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
+fn ridge_test(coords: vec2<i32>, size: vec2<i32>) -> bool {
+    let hes = hessian(coords);
+    let eigenvalues = mat2eigenvalues(hes);
+    let minor = max(eigenvalues.x, eigenvalues.y);
+    if (minor >= 0.0) {
+        return false;
+    }
+    let eigenvector = mat2realEigenvector(hes, minor);
+    let gradient = vec2<f32>(
+        f_x(coords), f_y(coords)
+    );
+    if (abs(dot(eigenvector, gradient)) < 0.0001) {
+        return false;
+    }
+    return true;
+}
+
+fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
     let color = textureLoad(ray_casting, coords, 0);
-    if (settings.show_lyapunov_exponent == 0) {
+    if (settings.overlay_mode == 0) {
         return color;
     }
     let delta = settings.central_difference_delta;
@@ -159,30 +177,27 @@ fn ridge_extraction(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
         return color;
     }
 
-    let hes = hessian(coords);
-    let eigenvalues = mat2eigenvalues(hes);
-    let minor = max(eigenvalues.x, eigenvalues.y);
-    if (minor >= 0.0) {
+    if (settings.overlay_mode == 1) {
+        let exponent = lyapunov_exponent(coords);
+        let scaled_exponent = exp(settings.lyapunov_scaling * exponent - 5.0);
+        return scaled_exponent * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - scaled_exponent) * color;
+    } elseif (settings.overlay_mode == 2) {
+        if (ridge_test(coords, size)) {
+            return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+        }
         return color;
     }
-    let eigenvector = mat2realEigenvector(hes, minor);
-    let gradient = vec2<f32>(
-        f_x(coords), f_y(coords)
-    );
-    if (abs(dot(eigenvector, gradient)) < 0.0001) {
-        return color;
-    }
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    return color;
 }
 
 [[stage(compute), workgroup_size(8, 8)]]
-fn ridge_extraction_desktop([[builtin(global_invocation_id)]] gid: vec3<u32>) {
+fn overlay_desktop([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let size = textureDimensions(target);
     let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
         return;
     }
-    let color = ridge_extraction(coords, size);
+    let color = overlay(coords, size);
     textureStore(target, coords, color);
 }
 
@@ -195,12 +210,12 @@ fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
 }
 
 [[stage(compute), workgroup_size(8, 8)]]
-fn ridge_extraction_web([[builtin(global_invocation_id)]] gid: vec3<u32>) {
+fn overlay_web([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     let size = textureDimensions(target);
     let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
         return;
     }
-    let color = ridge_extraction(coords, size);
+    let color = overlay(coords, size);
     textureStore(target, coords, vec4<f32>(srgb_from_linear(color.rgb), color.a));
 }
