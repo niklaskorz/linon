@@ -11,3 +11,9 @@
 
 .vscode/
 **/*.cap
+
+# Web build
+/public/linon_bg.wasm
+/public/linon_bg.wasm.d.ts
+/public/linon.d.ts
+/public/linon.js

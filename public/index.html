@@ -1,13 +1,23 @@
 <!doctype html>
 <html>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8">
+    <title>linon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/normalize.css@8/normalize.css">
+    <style>
+      body {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+    </style>
   </head>
   <body>
     <script type="module">
       import init from "./linon.js";
       init();
+      document.addEventListener('contextmenu', event => event.preventDefault());
     </script>
   </body>
 </html>

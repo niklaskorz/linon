@@ -12,6 +12,7 @@ use anyhow::Result;
 use application::Application;
 #[cfg(not(target_arch = "wasm32"))]
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::rc::Rc;
 use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
 use winit::dpi::LogicalSize;
@@ -30,7 +31,7 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
     Ok(watcher)
 }
 
-async fn run(event_loop: EventLoop<()>, window: Window) {
+async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
     let mut app = Application::new(&window)
         .await
         .expect("creation of application failed");
@@ -138,21 +139,39 @@ fn main() -> Result<()> {
             height: 900,
         })
         .build(&event_loop)?;
+    let window = Rc::new(window); // needed for resize closure on web
 
     #[cfg(target_arch = "wasm32")]
     {
+        use wasm_bindgen::JsCast;
         use winit::platform::web::WindowExtWebSys;
         console_log::init().expect("could not initialize logger");
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
         // On wasm, append the canvas to the document body
-        web_sys::window()
-            .and_then(|win| win.document())
+        let window = window.clone();
+        let web_window = web_sys::window().expect("couldn't retrieve website window");
+        let body = web_window
+            .document()
             .and_then(|doc| doc.body())
-            .and_then(|body| {
-                body.append_child(&web_sys::Element::from(window.canvas()))
-                    .ok()
-            })
-            .expect("couldn't append canvas to document body");
+            .expect("couldn't retrieve document body");
+        body.append_child(&web_sys::Element::from(window.canvas()))
+            .ok()
+            .expect("couldn't append canvas to body");
+        window.set_inner_size(winit::dpi::LogicalSize::new(
+            body.client_width(),
+            body.client_height(),
+        ));
+        let resize_closure =
+            wasm_bindgen::closure::Closure::wrap(Box::new(move |e: web_sys::Event| {
+                window.set_inner_size(winit::dpi::LogicalSize::new(
+                    body.client_width(),
+                    body.client_height(),
+                ));
+            }) as Box<dyn FnMut(_)>);
+        web_window
+            .add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref())
+            .unwrap();
+        resize_closure.forget();
     }
 
     #[cfg(not(target_arch = "wasm32"))]
