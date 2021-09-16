@@ -37,14 +37,19 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
         .expect("creation of application failed");
 
     #[cfg(not(target_arch = "wasm32"))]
-    let (tx, rx) = channel::<notify::Result<notify::Event>>();
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let watcher = start_watcher(tx);
-        if let Err(e) = watcher {
-            println!("Hot reloading disabled, watcher creation failed: {:?}", e);
+    let (rx, _watcher) = {
+        let (tx, rx) = channel::<notify::Result<notify::Event>>();
+        match start_watcher(tx) {
+            Ok(watcher) => {
+                println!("Watching shader main_view.wgsl for changes");
+                (rx, Some(watcher))
+            }
+            Err(e) => {
+                println!("Hot reloading disabled, watcher creation failed: {:?}", e);
+                (rx, None)
+            }
         }
-    }
+    };
 
     event_loop.run(move |event, _, control_flow| {
         app.handle_event(&event);
@@ -98,7 +103,7 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
                         let size = window.inner_size();
                         app.resize(size.width, size.height);
                     } else {
-                        panic!("SwapChainError: {}", e);
+                        panic!("{}", e);
                     }
                 }
             }

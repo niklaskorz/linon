@@ -21,7 +21,7 @@ egui_winit_platform = "0.10"
 wgpu = "0.10"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-notify = "5.0.0-pre.12"
+notify = "5.0.0-pre.13"
 env_logger = "0.9"
 egui_wgpu_backend = "0.12"
 
