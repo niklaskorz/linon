@@ -106,66 +106,6 @@ fn lyapunov_exponent(coords: vec2<i32>) -> f32 {
     return exponent;
 }
 
-fn f_x(coords: vec2<i32>) -> f32 {
-    let x_next = lyapunov_exponent(coords + vec2<i32>(settings.central_difference_delta, 0));
-    let x_prev = lyapunov_exponent(coords - vec2<i32>(settings.central_difference_delta, 0));
-    return 0.5 * (x_next - x_prev);
-}
-
-fn f_y(coords: vec2<i32>) -> f32 {
-    let y_next = lyapunov_exponent(coords + vec2<i32>(0, settings.central_difference_delta));
-    let y_prev = lyapunov_exponent(coords - vec2<i32>(0, settings.central_difference_delta));
-    return 0.5 * (y_next - y_prev);
-}
-
-fn f_x_x(coords: vec2<i32>) -> f32 {
-    let x_next = f_x(coords + vec2<i32>(settings.central_difference_delta, 0));
-    let x_prev = f_x(coords - vec2<i32>(settings.central_difference_delta, 0));
-    return 0.5 * (x_next - x_prev);
-}
-
-fn f_x_y(coords: vec2<i32>) -> f32 {
-    let y_next = f_x(coords + vec2<i32>(0, settings.central_difference_delta));
-    let y_prev = f_x(coords - vec2<i32>(0, settings.central_difference_delta));
-    return 0.5 * (y_next - y_prev);
-}
-
-fn f_y_x(coords: vec2<i32>) -> f32 {
-    let x_next = f_y(coords + vec2<i32>(settings.central_difference_delta, 0));
-    let x_prev = f_y(coords - vec2<i32>(settings.central_difference_delta, 0));
-    return 0.5 * (x_next - x_prev);
-}
-
-fn f_y_y(coords: vec2<i32>) -> f32 {
-    let y_next = f_y(coords + vec2<i32>(0, settings.central_difference_delta));
-    let y_prev = f_y(coords - vec2<i32>(0, settings.central_difference_delta));
-    return 0.5 * (y_next - y_prev);
-}
-
-fn hessian(coords: vec2<i32>) -> mat2x2<f32> {
-    return mat2x2<f32>(
-        vec2<f32>(f_x_x(coords), f_x_y(coords)),
-        vec2<f32>(f_y_x(coords), f_y_y(coords))
-    );
-}
-
-fn ridge_test(coords: vec2<i32>, size: vec2<i32>) -> bool {
-    let hes = hessian(coords);
-    let eigenvalues = mat2eigenvalues(hes);
-    let minor = max(eigenvalues.x, eigenvalues.y);
-    if (minor >= 0.0) {
-        return false;
-    }
-    let eigenvector = mat2realEigenvector(hes, minor);
-    let gradient = vec2<f32>(
-        f_x(coords), f_y(coords)
-    );
-    if (abs(dot(eigenvector, gradient)) < 0.0001) {
-        return false;
-    }
-    return true;
-}
-
 fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
     let color = textureLoad(ray_casting, coords, 0);
     if (settings.overlay_mode == 0) {
@@ -183,8 +123,6 @@ fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
         if (scaled_exponent > 0.8) {
             return scaled_exponent * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - scaled_exponent) * color;
         }
-    } elseif (settings.overlay_mode == 2 && ridge_test(coords, size)) {
-        return vec4<f32>(1.0, 1.0, 1.0, 1.0);
     }
     return color;
 }

@@ -15,7 +15,6 @@ pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
 enum OverlayMode {
     Disabled = 0,
     LyapunovExponents = 1,
-    RidgeExtraction = 2,
 }
 
 impl Display for OverlayMode {
@@ -23,7 +22,6 @@ impl Display for OverlayMode {
         let text = match self {
             Self::Disabled => "Disabled",
             Self::LyapunovExponents => "Lyapunov exponents",
-            Self::RidgeExtraction => "Ridge extraction",
         };
         write!(f, "{}", text)
     }
@@ -268,13 +266,6 @@ impl Application {
                                     overlay_mode,
                                     OverlayMode::LyapunovExponents,
                                     OverlayMode::LyapunovExponents,
-                                )
-                                .clicked()
-                            || ui
-                                .selectable_value(
-                                    overlay_mode,
-                                    OverlayMode::RidgeExtraction,
-                                    OverlayMode::RidgeExtraction,
                                 )
                                 .clicked()
                     })
