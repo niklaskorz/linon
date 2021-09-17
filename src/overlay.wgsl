@@ -180,12 +180,11 @@ fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
     if (settings.overlay_mode == 1) {
         let exponent = lyapunov_exponent(coords);
         let scaled_exponent = exp(settings.lyapunov_scaling * exponent - 5.0);
-        return scaled_exponent * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - scaled_exponent) * color;
-    } elseif (settings.overlay_mode == 2) {
-        if (ridge_test(coords, size)) {
-            return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+        if (scaled_exponent > 0.8) {
+            return scaled_exponent * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - scaled_exponent) * color;
         }
-        return color;
+    } elseif (settings.overlay_mode == 2 && ridge_test(coords, size)) {
+        return vec4<f32>(1.0, 1.0, 1.0, 1.0);
     }
     return color;
 }
