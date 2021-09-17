@@ -673,7 +673,7 @@ impl MainView {
         let original_shader_src = self.shader_src.clone();
         let high_accuracy_shader_src = self
             .shader_src
-            .replace("let h: f32 = 0.1;", "let h: f32 = 0.001;")
+            .replace("let h_initial: f32 = 0.1;", "let h_initial: f32 = 0.001;")
             .replace("let steps: i32 = 100;", "let steps: i32 = 5000;");
         self.reload_shader(
             device,

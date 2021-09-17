@@ -218,7 +218,7 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h: f32 = 0.1;
+let h_initial: f32 = 0.1;
 let steps: i32 = 5000;
 
 struct NonlinearRayColorResult {
@@ -238,7 +238,6 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
     var t: f32 = 0.0;
     var last_v: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
     var last_diff: f32 = -1.0;
-    let h_initial = h;
     var h: f32 = h_initial;
 
     for (; t <= 5.0;) {
@@ -286,7 +285,6 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
     var t: f32 = 0.0;
     var last_v: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
     var last_diff: f32 = -1.0;
-    let h_initial = h;
     var h: f32 = h_initial;
 
     var sample: RaySample;
