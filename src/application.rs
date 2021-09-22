@@ -283,8 +283,11 @@ impl Application {
                         },
                     );
                 }
-                if ui.button("Enhance!").clicked() {
+                if ui.button("Enhance").clicked() {
                     main_view.render_high_accuracy(device, queue, field_function.clone());
+                }
+                if ui.button("Outline").clicked() {
+                    main_view.render_outline_rays(device, queue, field_function.clone());
                 }
             });
             if *overlay_mode != OverlayMode::Disabled {
