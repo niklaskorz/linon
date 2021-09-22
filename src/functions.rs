@@ -50,9 +50,9 @@ let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 return refraction(t_in, t_out, v, normal);"
                 .to_string(),
             Self::MiragePlane => "let t_env = 15.0; // °C
-let t_src = 22.0; // °C
+let t_src = 30.0; // °C
 let max_dist = 0.01;
-let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
+let plane_p0 = vec3<f32>(0.0, 0.1, 0.0);
 let plane_n = vec3<f32>(0.0, 1.0, 0.0);
 
 let dist_in = point_plane_distance(p_prev, plane_n, plane_p0);
@@ -81,9 +81,9 @@ let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 return refraction(t_in, t_out, v, normal);"
                 .to_string(),
             Self::MiragePlaneSigmoid => "let t_env = 15.0; // °C
-let t_src = 22.0; // °C
+let t_src = 30.0; // °C
 let max_dist = 0.01;
-let plane_p0 = vec3<f32>(0.0, 0.0, 0.0);
+let plane_p0 = vec3<f32>(0.0, 0.1, 0.0);
 let plane_n = vec3<f32>(0.0, 1.0, 0.0);
 
 let dist_in = point_plane_distance(p_prev, plane_n, plane_p0);

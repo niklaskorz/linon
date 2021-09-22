@@ -26,6 +26,13 @@ struct Settings {
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
+[[block]]
+struct Exponents {
+    data: array<f32>;
+};
+[[group(0), binding(4)]]
+var<storage, read> exponents: Exponents;
+
 struct Vertex {
     x: f32;
     y: f32;
@@ -218,9 +225,6 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 
-let h_initial: f32 = 0.1;
-let steps: i32 = 5000;
-
 struct NonlinearRayColorResult {
     color: vec4<f32>;
     mapping_point: vec4<f32>;
@@ -238,6 +242,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
     var t: f32 = 0.0;
     var last_v: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
     var last_diff: f32 = -1.0;
+    let h_initial = 0.1;
     var h: f32 = h_initial;
 
     for (; t <= 5.0;) {
@@ -283,31 +288,24 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
     var cur_dir: vec3<f32> = start_dir;
     var color: vec4<f32>;
     var t: f32 = 0.0;
-    var last_v: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
-    var last_diff: f32 = -1.0;
-    var h: f32 = h_initial;
+    let h = 0.001;
+    let steps: i32 = 5000;
 
     var sample: RaySample;
     sample.color = vec4<f32>(sample_color, 0.5);
     let sample_steps = 100;
     let sample_step_size = steps / sample_steps;
 
-    for (var i: i32 = 0; i < steps && t <= 5.0; i = i + 1) {
+    for (var i: i32 = 0; i < steps; i = i + 1) {
         // Runge-Kutta method
         let k1 = field_function(cur_point, cur_point, start_dir, cur_dir, t);
         let k2 = field_function(cur_point, cur_point + 0.5 * h * k1, start_dir, k1, t + 0.5 * h);
         let k3 = field_function(cur_point, cur_point + 0.5 * h * k2, start_dir, k2, t + 0.5 * h);
         let k4 = field_function(cur_point, cur_point + h * k3, start_dir, k3, t + h);
         let v = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
-        let diff = length(v - last_v);
-        if (last_diff >= 0.0 && diff > 10.0 * last_diff && h > 0.002) {
-            h = 0.001;
-            continue;
-        }
         cur_dir = (1.0 - field_weight) * cur_dir + field_weight * v;
 
         let step_dir = cur_dir * h;
-
         if (i % sample_step_size == 0) {
             sample.position = vec4<f32>(cur_point, 1.0);
             let index = samples_index * sample_steps + i / sample_step_size;
@@ -316,11 +314,6 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
 
         cur_point = cur_point + step_dir;
         t = t + h;
-        last_v = v;
-        if (2.0 * diff < last_diff && h < h_initial) {
-            h = h_initial;
-        }
-        last_diff = diff;
     }
 }
 
@@ -386,8 +379,98 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
     // Sample points for reference view
     // Only executed in first workgroup for best performance
     if (gid.x < 8u && gid.y == 0u) {
-        let mouse_pos = vec2<f32>(settings.mouse_pos_x, settings.mouse_pos_y);
-        let pos = mouse_pos + 0.01 * sample_positions[i32(gid.x)];
+        //let mouse_pos = vec2<f32>(settings.mouse_pos_x, settings.mouse_pos_y);
+        //let pos = mouse_pos + 0.01 * sample_positions[i32(gid.x)];
+
+        let min_exp = 0.8;
+        var pos: vec2<f32> = vec2<f32>(0.0, 0.0);
+        var found: bool = false;
+        var sum: i32 = 0;
+        if (gid.x == 0u) {
+            // Bottom left
+            for (var x: i32 = 0; x < size.x; x = x + 1) {
+                for (var y: i32 = 0; y < size.y; y = y + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp && (size.x - x) + y >= sum) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        sum = (size.x - x) + y;
+                    }
+                }
+            }
+        } elseif (gid.x == 1u) {
+            // Bottom middle
+            for (var y: i32 = size.x - 1; y >= 0 && !found; y = y - 1) {
+                for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        found = true;
+                    }
+                }
+            }
+        } elseif (gid.x == 2u) {
+            // Bottom right
+            for (var x: i32 = 0; x < size.x; x = x + 1) {
+                for (var y: i32 = 0; y < size.y; y = y + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp && x + y >= sum) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        sum = x + y;
+                    }
+                }
+            }
+        } elseif (gid.x == 3u) {
+            // Middle right
+            for (var x: i32 = size.x - 1; x >= 0 && !found; x = x - 1) {
+                for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        found = true;
+                    }
+                }
+            }
+        } elseif (gid.x == 4u) {
+            // Top right
+            for (var x: i32 = 0; x < size.x; x = x + 1) {
+                for (var y: i32 = 0; y < size.y; y = y + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp && x + (size.y - y) >= sum) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        sum = x + (size.y - y);
+                    }
+                }
+            }
+        } elseif (gid.x == 5u) {
+            // Top middle
+            for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
+                for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        found = true;
+                    }
+                }
+            }
+        } elseif (gid.x == 6u) {
+            // Top left
+            for (var x: i32 = 0; x < size.x; x = x + 1) {
+                for (var y: i32 = 0; y < size.y; y = y + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp && (size.x - x) + (size.y - y) >= sum) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        sum = (size.x - x) + (size.y - y);
+                    }
+                }
+            }
+        } elseif (gid.x == 7u) {
+            // Middle left
+            for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
+                for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
+                    if (exponents.data[y * size.y + x] >= min_exp) {
+                        pos = vec2<f32>(f32(x), f32(y));
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        pos.x = pos.x / (width - 1.0);
+        pos.y = (height - 1.0 - pos.y) / (height - 1.0); 
+
         let color = sample_colors[i32(gid.x)];
         let u2 = pos.x * viewport_width - 0.5 * viewport_width;
         let v2 = pos.y * viewport_height - 0.5 * viewport_height;

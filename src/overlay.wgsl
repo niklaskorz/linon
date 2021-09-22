@@ -91,6 +91,13 @@ struct Settings {
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
+[[block]]
+struct Exponents {
+    data: array<f32>;
+};
+[[group(0), binding(4)]]
+var<storage, read_write> exponents: Exponents;
+
 fn lyapunov_exponent(coords: vec2<i32>) -> f32 {
     let x_next = textureLoad(mapping, coords + vec2<i32>(settings.central_difference_delta, 0), 0).xyz;
     let x_prev = textureLoad(mapping, coords - vec2<i32>(settings.central_difference_delta, 0), 0).xyz;
@@ -120,8 +127,10 @@ fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
     if (settings.overlay_mode == 1) {
         let exponent = lyapunov_exponent(coords);
         let scaled_exponent = exp(settings.lyapunov_scaling * exponent - 5.0);
-        if (scaled_exponent > 0.8) {
-            return scaled_exponent * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - scaled_exponent) * color;
+        exponents.data[size.y * coords.y + coords.x] = scaled_exponent;
+        if (scaled_exponent >= 0.8) {
+            let alpha = min(1.0, scaled_exponent) * 0.5;
+            return alpha * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - alpha) * color;
         }
     }
     return color;

@@ -67,6 +67,7 @@ pub struct MainView {
     overlay_bind_group: wgpu::BindGroup,
     overlay_pipeline: wgpu::ComputePipeline,
     settings_buffer: wgpu::Buffer,
+    exponents_buffer: wgpu::Buffer,
     camera_buffer: wgpu::Buffer,
     camera: ArcballCamera<f32>,
     prev_pointer_pos: Option<(f32, f32)>,
@@ -135,6 +136,13 @@ impl MainView {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let exponents_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("exponents_buffer"),
+            size: 4 * (width as u64) * (height as u64),
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
         let mut camera = ArcballCamera::new(center, 1.0, [width as f32, height as f32]);
         camera.zoom(-1.0, 1.0);
         let camera_uniform = CameraUniform::moving(&camera);
@@ -187,6 +195,16 @@ impl MainView {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("compute_bind_group_layout"),
             });
@@ -208,6 +226,10 @@ impl MainView {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: settings_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: exponents_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
@@ -339,6 +361,16 @@ impl MainView {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("overlay_bind_group_layout"),
             });
@@ -360,6 +392,10 @@ impl MainView {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: settings_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: exponents_buffer.as_entire_binding(),
                 },
             ],
             label: Some("overlay_bind_group"),
@@ -398,6 +434,7 @@ impl MainView {
             overlay_bind_group,
             overlay_pipeline,
             settings_buffer,
+            exponents_buffer,
 
             camera_buffer,
             camera,
@@ -529,6 +566,13 @@ impl MainView {
             wgpu::TextureFormat::Rgba32Float,
             true,
         );
+        self.exponents_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("exponents_buffer"),
+            size: 4 * (width as u64) * (height as u64),
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
         self.compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.compute_bind_group_layout,
             entries: &[
@@ -547,6 +591,10 @@ impl MainView {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: self.settings_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: self.exponents_buffer.as_entire_binding(),
                 },
             ],
             label: Some("compute_bind_group"),
@@ -569,6 +617,10 @@ impl MainView {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: self.settings_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: self.exponents_buffer.as_entire_binding(),
                 },
             ],
             label: Some("overlay_bind_group"),
@@ -673,8 +725,7 @@ impl MainView {
         let original_shader_src = self.shader_src.clone();
         let high_accuracy_shader_src = self
             .shader_src
-            .replace("let h_initial: f32 = 0.1;", "let h_initial: f32 = 0.001;")
-            .replace("let steps: i32 = 100;", "let steps: i32 = 5000;");
+            .replace("let h_initial = 0.1;", "let h_initial = 0.001;");
         self.reload_shader(
             device,
             Some(&high_accuracy_shader_src),
