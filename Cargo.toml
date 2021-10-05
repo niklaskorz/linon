@@ -34,5 +34,5 @@ console_log = "0.2.0"
 egui_wgpu_backend = { version = "0.12", features = ["web"] }
 
 [patch.crates-io]
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "e8c236cd71cf7ee9ea5e4533e01b88692fc15991" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "7f2485ea9d9a4c25037d89720389926dfe043aaf" }
 egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend.git", rev = "74f63a071ff6578688f18d8091bf549d417b2c8f" }

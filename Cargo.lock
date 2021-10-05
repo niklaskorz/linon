@@ -1206,7 +1206,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.6.0"
-source = "git+https://github.com/gfx-rs/naga?rev=130f802#130f802c89d488b719a0e494f3e1ea9ba6f5ba92"
+source = "git+https://github.com/gfx-rs/naga?rev=52d74e9#52d74e91a4b062d317304250b5461890913d3bb8"
 dependencies = [
  "bit-set",
  "bitflags",
@@ -2023,7 +2023,7 @@ checksum = "d8b77fdfd5a253be4ab714e4ffa3c49caf146b4de743e97510c0656cf90f1e8e"
 [[package]]
 name = "wgpu"
 version = "0.10.1"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=e8c236cd71cf7ee9ea5e4533e01b88692fc15991#e8c236cd71cf7ee9ea5e4533e01b88692fc15991"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=7f2485ea9d9a4c25037d89720389926dfe043aaf#7f2485ea9d9a4c25037d89720389926dfe043aaf"
 dependencies = [
  "arrayvec",
  "js-sys",
@@ -2042,7 +2042,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.10.0"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=e8c236cd71cf7ee9ea5e4533e01b88692fc15991#e8c236cd71cf7ee9ea5e4533e01b88692fc15991"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=7f2485ea9d9a4c25037d89720389926dfe043aaf#7f2485ea9d9a4c25037d89720389926dfe043aaf"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -2063,7 +2063,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.10.1"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=e8c236cd71cf7ee9ea5e4533e01b88692fc15991#e8c236cd71cf7ee9ea5e4533e01b88692fc15991"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=7f2485ea9d9a4c25037d89720389926dfe043aaf#7f2485ea9d9a4c25037d89720389926dfe043aaf"
 dependencies = [
  "arrayvec",
  "ash",
@@ -2085,6 +2085,7 @@ dependencies = [
  "naga",
  "objc",
  "parking_lot",
+ "profiling",
  "range-alloc",
  "raw-window-handle",
  "renderdoc-sys",
@@ -2096,7 +2097,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.10.0"
-source = "git+https://github.com/gfx-rs/wgpu.git?rev=e8c236cd71cf7ee9ea5e4533e01b88692fc15991#e8c236cd71cf7ee9ea5e4533e01b88692fc15991"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=7f2485ea9d9a4c25037d89720389926dfe043aaf#7f2485ea9d9a4c25037d89720389926dfe043aaf"
 dependencies = [
  "bitflags",
 ]

@@ -66,6 +66,7 @@ impl Application {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
+                ..Default::default()
             })
             .await
             .context("no compatible adapter found")?;
