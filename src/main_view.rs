@@ -90,7 +90,7 @@ impl MainView {
             label: Some("compute_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&with_field_function(
                 shader_src,
-                &PredefinedFunction::MirageSpherical.to_code(),
+                &PredefinedFunction::MirageSphericalSigmoid.to_code(),
             ))),
         });
 

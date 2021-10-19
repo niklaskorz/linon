@@ -34,7 +34,7 @@ impl PredefinedFunction {
         match self {
             Self::Custom => "".to_string(),
             Self::MirageSpherical => "let t_env = 15.0; // °C
-let t_src = 100.0; // °C
+let t_src = 200.0; // °C
 let max_dist = 0.25;
 let center = vec3<f32>(-0.5, 0.5, -0.5);
 
@@ -65,7 +65,7 @@ let t_out = part_out * t_env + (1.0 - part_out) * t_src;
 return refraction(t_in, t_out, v, plane_n);"
                 .to_string(),
             Self::MirageSphericalSigmoid => "let t_env = 15.0; // °C
-let t_src = 100.0; // °C
+let t_src = 200.0; // °C
 let max_dist = 0.25;
 let center = vec3<f32>(-0.5, 0.5, -0.5);
 
@@ -105,7 +105,7 @@ let dy = 0.0;
 let dz = 0.5 * t;
 return translate(v0, dx, dy, dz);"
                 .to_string(),
-            Self::Rotation => "return normalize(v0 + rotateZ(v0, PI / 2.0 * t));".to_string(),
+            Self::Rotation => "return normalize(v0 + rotateZ(v0, PI * t));".to_string(),
             Self::LorenzAttractor => "let rho = 28.0;
 let sigma = 10.0;
 let beta = 8.0 / 3.0;

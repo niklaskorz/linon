@@ -174,8 +174,8 @@ impl Application {
             overlay_mode: OverlayMode::Disabled,
             central_difference_delta: 1,
             lyapunov_scaling: 50.0,
-            predefined_function: PredefinedFunction::MirageSpherical,
-            field_function: PredefinedFunction::MirageSpherical.to_code(),
+            predefined_function: PredefinedFunction::MirageSphericalSigmoid,
+            field_function: PredefinedFunction::MirageSphericalSigmoid.to_code(),
         })
     }
 
