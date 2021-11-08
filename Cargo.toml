@@ -16,14 +16,14 @@ futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.14"
-egui_winit_platform = "0.10"
-wgpu = "0.10"
+egui = "0.15"
+egui_winit_platform = "0.11"
+wgpu = "0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 notify = "5.0.0-pre.13"
 env_logger = "0.9"
-egui_wgpu_backend = "0.12"
+egui_wgpu_backend = "0.14"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.77"
@@ -31,8 +31,4 @@ wasm-bindgen-futures = "0.4.27"
 web-sys = "0.3.22"
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
-egui_wgpu_backend = { version = "0.12", features = ["web"] }
-
-[patch.crates-io]
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "7f2485ea9d9a4c25037d89720389926dfe043aaf" }
-egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend.git", rev = "74f63a071ff6578688f18d8091bf549d417b2c8f" }
+egui_wgpu_backend = { version = "0.14", features = ["web"] }

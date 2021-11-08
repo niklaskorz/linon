@@ -491,7 +491,7 @@ impl Application {
     }
 
     pub fn render(&mut self, scale_factor: f32) -> Result<(), wgpu::SurfaceError> {
-        let frame = self.surface.get_current_frame()?.output;
+        let frame = self.surface.get_current_texture()?;
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -564,6 +564,7 @@ impl Application {
             .unwrap();
 
         self.queue.submit(Some(encoder.finish()));
+        frame.present();
 
         Ok(())
     }
