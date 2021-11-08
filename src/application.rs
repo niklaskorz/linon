@@ -4,6 +4,7 @@ use crate::cornell_box as cbox;
 use crate::functions::PredefinedFunction;
 use crate::main_view::{MainView, Settings};
 use crate::reference_view::ReferenceView;
+use crate::syntax_highlighting::code_view_ui;
 use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
@@ -451,7 +452,7 @@ impl Application {
                 });
             ui.vertical(|ui| {
                 ui.label("Custom function:");
-                if ui.code_editor(field_function).lost_focus() {
+                if code_view_ui(ui, field_function).lost_focus() {
                     *predefined_function = PredefinedFunction::Custom;
                     field_function_changed = true;
                 }

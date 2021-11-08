@@ -19,6 +19,7 @@ tobj = "3.0"
 egui = "0.15"
 egui_winit_platform = "0.11"
 wgpu = "0.11"
+syntect = { version = "4", default-features = false, features = ["default-fancy"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 notify = "5.0.0-pre.13"

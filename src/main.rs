@@ -5,6 +5,7 @@ mod functions;
 mod main_view;
 mod ray_samples;
 mod reference_view;
+mod syntax_highlighting;
 mod texture;
 mod vertices;
 
