@@ -39,6 +39,8 @@ impl CameraUniform {
     }
 }
 
+const DOWNSCALE: u32 = 2;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Settings {
@@ -93,6 +95,9 @@ impl MainView {
                 &PredefinedFunction::MirageSphericalSigmoid.to_code(),
             ))),
         });
+
+        let width = width / DOWNSCALE;
+        let height = height / DOWNSCALE;
 
         let texture = Texture::new(
             device,
@@ -509,15 +514,15 @@ impl MainView {
         match camera_op {
             CameraOperation::Rotate => {
                 self.camera.rotate(
-                    Vector2::new(prev.0 as f32, prev.1 as f32),
-                    Vector2::new(pos.0 as f32, pos.1 as f32),
+                    Vector2::new(prev.0, prev.1) / (DOWNSCALE as f32),
+                    Vector2::new(pos.0, pos.1) / (DOWNSCALE as f32),
                 );
                 self.update_camera(queue);
             }
             CameraOperation::Pan => {
                 self.camera.pan(Vector2::new(
-                    (pos.0 - prev.0) as f32,
-                    (pos.1 - prev.1) as f32,
+                    (pos.0 - prev.0) / (DOWNSCALE as f32),
+                    (pos.1 - prev.1) / (DOWNSCALE as f32),
                 ));
                 self.update_camera(queue);
             }
@@ -539,6 +544,8 @@ impl MainView {
         width: u32,
         height: u32,
     ) {
+        let width = width / DOWNSCALE;
+        let height = height / DOWNSCALE;
         rpass.free(self.texture_id);
         self.texture = Texture::new(
             device,
