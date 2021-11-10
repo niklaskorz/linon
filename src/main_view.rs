@@ -568,7 +568,7 @@ impl MainView {
         self.texture_id = rpass.egui_texture_from_wgpu_texture(
             device,
             &self.texture.texture,
-            wgpu::FilterMode::Linear,
+            wgpu::FilterMode::Nearest,
         );
         self.ray_casting_texture = Texture::new(
             device,
