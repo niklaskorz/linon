@@ -109,7 +109,7 @@ impl MainView {
         let texture_id = rpass.egui_texture_from_wgpu_texture(
             device,
             &texture.texture,
-            wgpu::FilterMode::Linear,
+            wgpu::FilterMode::Nearest,
         );
 
         let ray_casting_texture = Texture::new(
@@ -685,7 +685,7 @@ impl MainView {
         queue: &wgpu::Queue,
     ) -> Option<[f32; 2]> {
         let size = ui.available_size();
-        if self.texture.dimensions != (size.x as u32, size.y as u32) {
+        if self.texture.dimensions != (size.x as u32 / DOWNSCALE, size.y as u32 / DOWNSCALE) {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
         let resp = ui.image(self.texture_id, size);

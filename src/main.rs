@@ -13,6 +13,8 @@ use anyhow::Result;
 use application::Application;
 #[cfg(not(target_arch = "wasm32"))]
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use winit::event::ElementState;
+use winit::window::Fullscreen;
 use std::rc::Rc;
 use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
@@ -93,8 +95,15 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => match input.virtual_keycode {
-                Some(VirtualKeyCode::R) => {
+                Some(VirtualKeyCode::R) if input.state == ElementState::Pressed => {
                     app.load_default_model();
+                },
+                Some(VirtualKeyCode::F) if input.state == ElementState::Pressed => {
+                    window.set_fullscreen(if window.fullscreen().is_some() {
+                        None
+                    } else {
+                        Some(Fullscreen::Borderless(None))
+                    });
                 }
                 _ => {}
             },
