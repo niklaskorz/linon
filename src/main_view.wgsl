@@ -230,6 +230,8 @@ struct NonlinearRayColorResult {
     mapping_point: vec4<f32>;
 };
 
+let adaptive_sampling: bool = true;
+
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> NonlinearRayColorResult {
     var result: NonlinearRayColorResult;
     result.mapping_point = vec4<f32>(0.0, 0.0, 0.0, 0.0);
@@ -253,7 +255,7 @@ fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> Nonlinea
         let k4 = field_function(cur_point, cur_point + h * k3, start_dir, k3, t + h);
         let v = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
         let diff = length(v - last_v);
-        if (last_diff >= 0.0 && diff > 10.0 * last_diff && h > 0.002) {
+        if (adaptive_sampling && last_diff >= 0.0 && diff > 10.0 * last_diff && h > 0.002) {
             h = 0.001;
             continue;
         }

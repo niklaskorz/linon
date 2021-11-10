@@ -8,6 +8,7 @@ use crate::syntax_highlighting::code_view_ui;
 use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
+use wgpu::DeviceType;
 use winit::window::Window;
 
 pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
@@ -71,6 +72,7 @@ impl Application {
             })
             .await
             .context("no compatible adapter found")?;
+        let discrete_gpu = adapter.get_info().device_type == DeviceType::DiscreteGpu;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -140,6 +142,7 @@ impl Application {
             ray_samples_buffer.as_entire_binding(),
             size.width - INITIAL_SIDEBAR_WIDTH as u32,
             size.height,
+            discrete_gpu,
         );
         let reference_view = ReferenceView::new(
             &mut rpass,

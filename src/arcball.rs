@@ -8,7 +8,7 @@ use cgmath::num_traits::clamp;
 use cgmath::prelude::*;
 use cgmath::{BaseFloat, Matrix4, Quaternion, Vector2, Vector3, Vector4};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum CameraOperation {
     None,
     Rotate,

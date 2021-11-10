@@ -39,8 +39,6 @@ impl CameraUniform {
     }
 }
 
-const DOWNSCALE: u32 = 2;
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Settings {
@@ -52,11 +50,13 @@ pub struct Settings {
 }
 
 pub struct MainView {
+    downscale_factor: u32,
     texture: Texture,
     texture_id: egui::TextureId,
     ray_casting_texture: Texture,
     mapping_texture: Texture,
     shader_src: String,
+    field_function: String,
     _shader: wgpu::ShaderModule,
     compute_bind_group_layout: wgpu::BindGroupLayout,
     compute_bind_group: wgpu::BindGroup,
@@ -86,7 +86,10 @@ impl MainView {
         ray_samples_buffer_binding: wgpu::BindingResource,
         width: u32,
         height: u32,
+        discrete_gpu: bool,
     ) -> Self {
+        let downscale_factor = if discrete_gpu { 1 } else { 2 };
+
         let shader_src = include_str!("main_view.wgsl");
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -96,8 +99,8 @@ impl MainView {
             ))),
         });
 
-        let width = width / DOWNSCALE;
-        let height = height / DOWNSCALE;
+        let width = width / downscale_factor;
+        let height = height / downscale_factor;
 
         let texture = Texture::new(
             device,
@@ -422,11 +425,13 @@ impl MainView {
         });
 
         Self {
+            downscale_factor,
             texture,
             texture_id,
             ray_casting_texture,
             mapping_texture,
             shader_src: shader_src.to_string(),
+            field_function: PredefinedFunction::MirageSphericalSigmoid.to_code(),
             _shader: shader,
             compute_bind_group_layout,
             compute_bind_group,
@@ -511,18 +516,19 @@ impl MainView {
             return;
         }
         let prev = self.prev_pointer_pos.unwrap();
+        let downscale_factor = self.downscale_factor as f32;
         match camera_op {
             CameraOperation::Rotate => {
                 self.camera.rotate(
-                    Vector2::new(prev.0, prev.1) / (DOWNSCALE as f32),
-                    Vector2::new(pos.0, pos.1) / (DOWNSCALE as f32),
+                    Vector2::new(prev.0, prev.1) / downscale_factor,
+                    Vector2::new(pos.0, pos.1) / downscale_factor,
                 );
                 self.update_camera(queue);
             }
             CameraOperation::Pan => {
                 self.camera.pan(Vector2::new(
-                    (pos.0 - prev.0) / (DOWNSCALE as f32),
-                    (pos.1 - prev.1) / (DOWNSCALE as f32),
+                    (pos.0 - prev.0) / downscale_factor,
+                    (pos.1 - prev.1) / downscale_factor,
                 ));
                 self.update_camera(queue);
             }
@@ -544,8 +550,8 @@ impl MainView {
         width: u32,
         height: u32,
     ) {
-        let width = width / DOWNSCALE;
-        let height = height / DOWNSCALE;
+        let width = width / self.downscale_factor;
+        let height = height / self.downscale_factor;
         rpass.free(self.texture_id);
         self.texture = Texture::new(
             device,
@@ -670,6 +676,7 @@ impl MainView {
         if let Some(new_src) = new_src {
             self.shader_src = new_src.to_string();
         }
+        self.field_function = field_function;
         self._shader = compute_shader;
         self.compute_pipeline = compute_pipeline;
         self.needs_redraw = true;
@@ -685,13 +692,21 @@ impl MainView {
         queue: &wgpu::Queue,
     ) -> Option<[f32; 2]> {
         let size = ui.available_size();
-        if self.texture.dimensions != (size.x as u32 / DOWNSCALE, size.y as u32 / DOWNSCALE) {
+        if self.texture.dimensions
+            != (
+                size.x as u32 / self.downscale_factor,
+                size.y as u32 / self.downscale_factor,
+            )
+        {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
         let resp = ui.image(self.texture_id, size);
         let input = ui.input();
         let mut mouse_pos = None;
         if let Some(pos) = resp.hover_pos() {
+            if input.pointer.any_released() && !input.pointer.any_down() {
+                self.enable_adaptive_sampling(device);
+            }
             if input.key_pressed(egui::Key::Space) {
                 self.reset_camera(queue);
             }
@@ -708,6 +723,9 @@ impl MainView {
             } else {
                 CameraOperation::None
             };
+            if input.pointer.any_pressed() && camera_op != CameraOperation::None {
+                self.disable_adaptive_sampling(device);
+            }
             if input.pointer.is_moving() {
                 self.on_pointer_moved(
                     queue,
@@ -721,6 +739,24 @@ impl MainView {
             }
         }
         mouse_pos
+    }
+
+    fn enable_adaptive_sampling(&mut self, device: &wgpu::Device) {
+        let shader_src = self.shader_src.replace(
+            "let adaptive_sampling: bool = false;",
+            "let adaptive_sampling: bool = true;",
+        );
+        self.reload_shader(device, Some(&shader_src), self.field_function.clone())
+            .unwrap();
+    }
+
+    fn disable_adaptive_sampling(&mut self, device: &wgpu::Device) {
+        let shader_src = self.shader_src.replace(
+            "let adaptive_sampling: bool = true;",
+            "let adaptive_sampling: bool = false;",
+        );
+        self.reload_shader(device, Some(&shader_src), self.field_function.clone())
+            .unwrap();
     }
 
     pub fn render_high_accuracy(
