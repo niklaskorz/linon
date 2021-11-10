@@ -50,6 +50,7 @@ pub struct Settings {
 }
 
 pub struct MainView {
+    adaptive_sampling: bool,
     downscale_factor: u32,
     texture: Texture,
     texture_id: egui::TextureId,
@@ -425,6 +426,7 @@ impl MainView {
         });
 
         Self {
+            adaptive_sampling: true,
             downscale_factor,
             texture,
             texture_id,
@@ -507,6 +509,7 @@ impl MainView {
 
     fn on_pointer_moved(
         &mut self,
+        device: &wgpu::Device,
         queue: &wgpu::Queue,
         camera_op: CameraOperation,
         pos: (f32, f32),
@@ -519,6 +522,7 @@ impl MainView {
         let downscale_factor = self.downscale_factor as f32;
         match camera_op {
             CameraOperation::Rotate => {
+                self.disable_adaptive_sampling(device);
                 self.camera.rotate(
                     Vector2::new(prev.0, prev.1) / downscale_factor,
                     Vector2::new(pos.0, pos.1) / downscale_factor,
@@ -526,6 +530,7 @@ impl MainView {
                 self.update_camera(queue);
             }
             CameraOperation::Pan => {
+                self.disable_adaptive_sampling(device);
                 self.camera.pan(Vector2::new(
                     (pos.0 - prev.0) / downscale_factor,
                     (pos.1 - prev.1) / downscale_factor,
@@ -702,11 +707,11 @@ impl MainView {
         }
         let resp = ui.image(self.texture_id, size);
         let input = ui.input();
+        if input.pointer.any_released() && !input.pointer.any_down() {
+            self.enable_adaptive_sampling(device);
+        }
         let mut mouse_pos = None;
         if let Some(pos) = resp.hover_pos() {
-            if input.pointer.any_released() && !input.pointer.any_down() {
-                self.enable_adaptive_sampling(device);
-            }
             if input.key_pressed(egui::Key::Space) {
                 self.reset_camera(queue);
             }
@@ -723,11 +728,9 @@ impl MainView {
             } else {
                 CameraOperation::None
             };
-            if input.pointer.any_pressed() && camera_op != CameraOperation::None {
-                self.disable_adaptive_sampling(device);
-            }
             if input.pointer.is_moving() {
                 self.on_pointer_moved(
+                    device,
                     queue,
                     camera_op,
                     (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
@@ -742,6 +745,10 @@ impl MainView {
     }
 
     fn enable_adaptive_sampling(&mut self, device: &wgpu::Device) {
+        if self.adaptive_sampling {
+            return;
+        }
+        self.adaptive_sampling = true;
         let shader_src = self.shader_src.replace(
             "let adaptive_sampling: bool = false;",
             "let adaptive_sampling: bool = true;",
@@ -751,6 +758,10 @@ impl MainView {
     }
 
     fn disable_adaptive_sampling(&mut self, device: &wgpu::Device) {
+        if !self.adaptive_sampling {
+            return;
+        }
+        self.adaptive_sampling = false;
         let shader_src = self.shader_src.replace(
             "let adaptive_sampling: bool = true;",
             "let adaptive_sampling: bool = false;",
