@@ -72,7 +72,10 @@ impl Application {
             })
             .await
             .context("no compatible adapter found")?;
+        #[cfg(not(target_arch = "wasm32"))]
         let discrete_gpu = adapter.get_info().device_type == DeviceType::DiscreteGpu;
+        #[cfg(target_arch = "wasm32")]
+        let discrete_gpu = false;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
