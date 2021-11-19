@@ -17,3 +17,5 @@
 /public/linon_bg.wasm.d.ts
 /public/linon.d.ts
 /public/linon.js
+
+.DS_Store
