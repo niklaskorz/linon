@@ -22,6 +22,27 @@ Through the "Overlay" dropdown, a [Lyapunov exponents](https://en.wikipedia.org/
 The "Outline" button next to it renders a path mesh for the rays on the outline of these divering areas.
 If the image appears fragmented or inaccurate, the "Enhance" button can be used to rerender the current frame once using a smaller step size for Runge-Kutta integration.
 
+The field functions are written in [WGSL](https://gpuweb.github.io/gpuweb/wgsl/) and executed as a function in the compute shader.
+The users can write their own field functions using these parameters:
+
+- `p: vec3<f32>` and `p_prev: vec3<f32>`: the current and previous ray position
+- `v: vec3<f32>` and `v0: vec3<f32>`: the current and initial ray direction / velocity
+- `t: 32`: time that has passed since ray creation
+
+The field function must return a three-dimensional floating point vector of type `vec3<f32>`.
+The following helper functions can be used inside a field function:
+
+- `rotateX(v: vec3<f32>, phi: f32) -> vec3<f32>`: rotates `v` along x-axis using angle `phi` 
+- `rotateY(v: vec3<f32>, phi: f32) -> vec3<f32>`: rotates `v` along y-axis using angle `phi` 
+- `rotateZ(v: vec3<f32>, phi: f32) -> vec3<f32>`: rotates `v` along z-axis using angle `phi` 
+- `translate(v: vec3<f32>, dx: f32, dy: f32, dz: f32) -> vec3<f32>`: translates `v` according to the three deltas `dx`, `dy`, `dz`
+- `refraction_index(t: f32) -> f32`: calculates the air refraction index for temperature `t` (in degrees Celsius)
+- `refraction(t_in: f32, t_out: f32, v_in: vec3<f32>, n: vec3<f32>) -> vec3<f32>`: calculates the refraction result for incoming vector `v_in` from incoming temperature `t_in` to outgoing temperature `t_out`
+- `point_plane_distance(p: vec3<f32>, n: vec3<f32>, p0: vec3<f32>) -> f32`: calculates the distance between point `p` and a plane defined by normal `n` and point `p0`
+- `sigmoid(x: f32) -> f32`: the [Sigmoid function](https://en.wikipedia.org/wiki/Sigmoid_function)
+
+Additional helper functions can be defined by adding them to the computer shader in `src/main_view.wgsl`.
+
 ## Build instructions
 
 Compilation requires at least [Rust](https://www.rust-lang.org/) version 1.54 to be installed.
