@@ -2,7 +2,9 @@
 
 The _linon_ project is the result of an advanced software practical in the [Visual Computing Group](https://vcg.iwr.uni-heidelberg.de/) at the Institute of Computer Science, Heidelberg University.
 It is based on the [Rust](https://www.rust-lang.org/) programming language and the upcoming [WebGPU](https://web.dev/gpu/) graphics standard through the [wgpu](https://github.com/gfx-rs/wgpu) library.
-At its core is the continuous evaluation of ray paths in a nonlinear field through [4th order Runge-Kutta integration](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods).
+At its core is the continuous evaluation of ray paths in a nonlinear field through 4th order [Runge-Kutta](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods) integration.
+
+A presentation in Powerpoint and PDF formats can be found in the `presentation/` directory, as well as a report as LaTeX and PDF in the `report/` directory.
 
 Prebuilt binaries for Windows, macOS and Linux can be found in the [releases](https://github.com/niklaskorz/linon/releases) of the Github repository.
 If you are running a nightly version of Firefox or Chrome and have the WebGPU flag enabled, you can also run [linon on the web](https://niklaskorz.github.io/linon/).
