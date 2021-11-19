@@ -1,0 +1,20 @@
+\chapter{Conclusion and Outlook}
+
+The implemented sandbox application offers a high level of flexibility for testing the visual influence of field functions.
+Being able to reproduce the rays' path in the reference view makes it easy for users to understand how the final image is produced.
+Through the Lyapunov exponents overlay and the assisting outline mesh, areas of different behavior in the field can be spotted easily.
+Focusing on comprehension of visual phenomena, alternative visualisations of ray paths have been analyzed.
+A reference view with two- or three-dimensional wavefronts in general gives a good idea of how rays contribute to the final image, but are not suitable for all kinds of functions.
+The three-dimensional outline mesh has shown to be suitable for functions that affect all parts of the scene in an equal or comparable amount.
+For mirages in particular, this mesh technique has been extended to visualize a pixel's ray neighborhood to allow the inspection of areas interesting to the user.
+The combination of WebGPU and Rust is very promising for the field of scientific visualisation.
+While modern standards such as Vulkan focus on more fine grained control and improved performance, they are generally harder to use than OpenGL.
+WebGPU fills this void nicely by abstracting over these modern standards.
+Additionally, the prospect of having one code base for many platforms including the web makes WebGPU a suitable successor to OpenGL.
+
+In future iterations of the application, the possibility to not only visualize a pixel's ray neighborhood but also the outline mesh of rays for similarly colored areas could make it easier to understand how specific parts of a mirage come into existence.
+A larger library of predefined field functions could lay a good foundation for further experiments, for example, by adding functions for the simulation of black holes.
+Finally, nonlinear ray casting is a very computation intensive process, which makes it hard to run the application interactively on devices with less powerful GPUs, such as laptops or tablets.
+While the acceleration techniques proposed by Gröller~\cite{grollerNonlinearRayTracing1995} may allow interactive rendering of simple scenes such as the Cornell box on such devices, more complex scenes still require powerful hardware.
+Researching the integration of remote rendering techniques as proposed by Lamberti and Sanna~\cite{lambertiStreamingBasedSolutionRemote2007} or Liao et al.~\cite{liaoLiveRenderCloudGaming2016} may thus be of interest.
+

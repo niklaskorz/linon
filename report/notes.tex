@@ -1,0 +1,19 @@
+
+\iffalse
+\begin{itemize}
+    \item Rust ray caster from scratch (winit, wgpu, compute shader, texture and fragment shader for presentation)
+    \item Basic linear ray casting of cornell box with surface colors as normals (May 5)
+    \item Blinn-phong shading and camera controls (May 16)
+    \item Loading of wavefront-obj-files per drag-and-drop (May 16)
+    \item Nonlinear ray casting using Runge-Kutta 4th order and a gravity center (May 25)
+    \item User input for custom functions, selection for predefined functions (can be edited), field weight mechanism to adjust influence of field on rays, 2d reference view to visualize path of rays in form of wavefronts, option to rotate scene instead of camera in raycast view (June 20)
+    \item 2D wavefronts are not really suitable for chaotic fields like Lorenz attractors or rotations (June 20)
+    \item 3D wavefronts with arrow glyphs and camera controls in reference view are suited better for showing the path of the rays (June 30)
+    \item Multicolored mesh in 3D reference view for showing the outlines of the ray paths, colors combined with wireframe mode emphasize the path of an edge, also very good for showing the compressed outline in chaotic fields (July 14)
+    \item Mirages can be expressed as field functions, using linear heat spread of predefined distance and refraction between the previous and the current point, usage of Runge-Kutta integration makes the refraction continuous, tried with spherical and with plane heat source, also added visualisation of rays around a pixel when clicking on reference view (August 4)
+    \item Lyapunov exponents show the extent of the heat spread, gives a circular outline in image space for spherical heat spread, can be smoothed and scaled through user input parameters (August 19)
+    \item High accuracy mode reveals incorrectness of Runge-Kutta integration for spherical mirage function, fixed by changing integration parameters (look up what I did, something with which point are passed as previous and current), added sigmoid heat spread for both spherical and plane heat source to simulate smoother heat spread (September 14)
+    \item Visualize outline of mirages by extracting outermost points of lyapunov exponents in image space and showing ray paths for these pixels in 3D reference view; adaptive accuracy uses larger integration steps for small gradients and smaller integration steps for large gradients, reveals issue with field weight interpolation (October 5)
+    \item Outlook: visualize outline for rays of same-color areas on click, fix field weight interpolation (needs to be moved into Runge-Kutta integration)
+\end{itemize}
+\fi

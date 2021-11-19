@@ -1,0 +1,113 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Introduction}
+
+\section{Motivation}
+
+Light is commonly assumed to travel linearly from source to destination.
+There are however cases where the path of light can be bent or distorted.
+In the case of black holes for example, the light is attracted by a very strong gravitational center.
+Heated air can change the direction of light through the varying refraction caused by the temperature transition from heat source to environment.
+To create an interactive environment for exploration of such phenomena may help in understanding the images they bring to life.
+In visual simulations, realistic graphics can be achieved through ray tracing, where the paths of light towards the camera are backtracked towards the light source, incorporating occlusions and reflections along the way.
+This usually assumes the light rays to have linear paths.
+Analyzing the effects of nonlinear light rays on the final visual outcome requires continuous evaluation of the forces that affect the rays.
+To be able to experiment with the effects a vector field function can have on visuals, a sandbox application is developed that allows evaluation of user-specified field functions and renders them through nonlinear ray casting.
+
+\section{Related Work}
+
+In his paper \enquote{Nonlinear ray tracing: visualizing strange worlds}, Gröller~\cite{grollerNonlinearRayTracing1995} investigates the visualisation of three-dimensional scenes in which light does not travel in a linear way but is affected by surrounding forces.
+The paper investigates ray casting with gravity centers and gravity lines, the chaotic dynamical Lorenz and Rössler systems as well as parametric curved rays, that is, parametric functions of which the entire path is known in advance.
+Two data structures are introduced, an iterative ray representation using line segments where the segment length can either be uniform or adaptive, and a hierarchical ray representation based on a binary tree of bounding boxes.
+Based on these data structures, three algorithms are discussed:
+The \enquote{sub/iter} algorithm makes use of the iterative ray representation with uniform subdivision.
+Based on this, the \enquote{bvh/iter} algorithm additionally stores the objects of the scene in a binary hierarchical bounding volume structure for faster intersection tests.
+The \enquote{bvh/hier} algorithm assumes the ray paths to be defined by a parametric function, allowing the storage of these curved rays in a non-overlapping binary tree.
+The scene objects are then stored in a possibly overlapping binary hierarchical bounding volume structure.
+While the object structure is precomputed, the curved ray tree is constructed as needed.
+Only if nodes of the two structures overlap, intersection between the curved ray and the object will be tested, avoiding intersection tests for objects that are not even close to a ray's current position.
+Gröller's approach does not consider shadows as finding a ray that connects two points in a nonlinear system is very complex, especially as there is no guarantee that such a connection even exists.
+For illumination in general, Gröller simply assumes that light particles are massless until they hit an object, thus circumventing the problem of finding a nonlinear connection between the intersection point and the light source.
+There is no possibility to interactively explore the rendered scenes or visualize the paths the rays follow through the field to help in understanding the final image.
+
+Zhao et al.~\cite{zhaoVisualSimulationHeat2007} present a physically-based framework for simulating the visual effects of heated air.
+The simulation models the heat-transfer between heat source objects and the environment with support for conduction, convection and radiation.
+A novel temperature texture is used for storing the heat distribution and making it available to the GPU.
+The rendering is performed as ray tracing on a GPU as a general purpose computation (GPGPU), using an iterative approach with a small step size when a ray is traversing the heat volume.
+The air refraction is computed per iteration using Snell's law, where the refraction index is derived from the air temperature.
+While the scenes are rendered in real time on the GPU and thus allow for interaction, there is no alternative representation of the ray paths, thus making it harder to understand how the final image comes into existence.
+
+\chapter{Technical Background}
+
+The project is based on the upcoming WebGPU graphics standard and the memory safe Rust programming language, which will be discussed in the following sections.
+
+\section{WebGPU}
+
+WebGPU~\cite{malyshauWebGPU2021} is an upcoming standard for computer graphics by the World Wide Web Consortium~(W3C).
+Unlike its OpenGL-based predecessor WebGL, WebGPU's design is based on and targets a family of newer graphics APIs: Vulkan, Metal and Direct3D~12.
+The primary difference between OpenGL and the more modern APIs is the explicit management of state and resources.
+While OpenGL relies on a globally exposed state machine, state in WebGPU and the APIs it is based on has to be stored and passed to the relevant API calls by the developer.
+Unlike Vulkan, the most verbose of the three modern APIs, WebGPU abstracts some concepts such as memory management or validation.
+As WebGPU is not only targeting native platforms but the web in particular, it is part of its security model that invalid API calls cannot reach the underlying native APIs, with the intention of preventing undefined behavior.
+These abstractions overall make it easier to work with WebGPU than with other modern APIs while still benefiting from the explicit state management.
+
+To emphasize the differences, consider the simple example of drawing a single triangle.
+In modern OpenGL, the first step is to generate and bind a vertex buffer object and a vertex array object.
+We then pass the points of the triangle to the GPU which allocates GPU memory bound to the vertex buffer object and writes the data.
+The vertex array object describes what will be passed to our shader during rendering and references the vertex buffer object.
+While the vertex buffer object just contains the raw data, the vertex array object holds information on how this data is structured, for example, that it contains three-component vectors with a 32-bit floating point data type.
+Before being able to draw this data, a GLSL shader program must be compiled and linked.
+A shader program consists of a vertex and a fragment shader, the two mandatory programmable stages of the graphics pipeline.
+Submitting this configuration to the GPU for drawing is rather straightforward.
+First, we set a color to be used as base color (or \emph{clear color}) and command OpenGL to clear the color buffer so we have a fresh canvas to draw our triangle on.
+Then, we bind the linked shader program and the generated vertex array object.
+Finally, we command OpenGL to draw a triangle using the first three points in the vertex buffer object of the currently bound vertex array object.
+A common pattern can be noticed in this workflow: before the GPU can work on a resource, it has to be \emph{bound} or \emph{used}.
+Allocating data and writing to it requires generating and binding a vertex buffer object.
+Drawing requires using a shader program and binding a vertex array object.
+All of this ends up as global state in OpenGL.
+Furthermore, OpenGL never explicitly made us choose which GPU should be used, making it harder to select the proper device on multi GPU systems.
+
+In WebGPU, we first have to request an \emph{adapter}, which may be a physical adapter such as a GPU or a software renderer~\cite{hansenLearnWgpu2021}.
+From this adapter, a logical \emph{device} is created which manages all resources requested by the application.
+Buffers, textures and other resources must be created through this logical device.
+All information relevant for rendering such as shaders, vertex layouts or uniforms is contained in a \emph{render pipeline}, which is again created through the logical device.
+Unlike in OpenGL, render pipelines are not bound in any global state.
+Instead, the pipeline is passed to a \emph{render pass} created by a \emph{command encoder}.
+To finally be able to draw, the result of this command encoder is passed to a \emph{queue} managed by the logical device.
+This queue is then processed by the GPU in the background and the application can continue doing work on the CPU.
+Synchronization is handled transparently as well.
+While explicit APIs such as Vulkan require barriers to prevent read-write-conflicts, WebGPU automatically detects if a render pass reads from a buffer that may be written by a different pass and postpones its execution.
+Compute programs on WebGPU follow a similar path, using \emph{compute pipelines} and \emph{compute passes} instead.
+
+As WebGPU targets multiple native APIs, shaders have to be translated to either SPIR-V~(Vulkan), MSL~(Metal) or HLSL~(Direct3D~12) accordingly.
+To that end, the W3C specifies a new shading language, the WebGPU Shading Language~(WGSL)~\cite{netoWebGPUShadingLanguage2021}.
+The most notable differences between GLSL and WGSL besides the different syntax are the ability to implement multiple shader stages in the same file and the idiom of passing attributes and results as function parameters and return types of the shader entrypoint functions.
+
+The implementation of the WebGPU standard is mainly driven by wgpu\footnote{\url{https://github.com/gfx-rs/wgpu} (accessed September 20, 2021)} used in web browser Mozilla Firefox and Dawn\footnote{\url{https://dawn.googlesource.com/dawn} (accessed September 20, 2021)} used in Google Chrome.
+While Dawn is written in the systems programming language C++ commonly used in computer graphics, wgpu employs the younger memory-safe systems programming language Rust that has already been used in other parts of Mozilla Firefox.
+While WebGPU is primarily designed to be used in web applications through the JavaScript programming language, it can be used in native applications outside the browser by using one of the two native implementations directly.
+With the goal of attracting developers of native applications, the wgpu project offers an idiomatic version of its API for users of the Rust programming language.
+
+\section{Rust}
+
+The Rust programming language belongs to the family of systems programming languages, which is targeted at the development of performance critical application such as operating systems, device drivers, databases, games or scientific simulations~\cite{blandyProgrammingRust2021}.
+The most prominent members of this family are the C and C++ programming languages, which make it easy to introduce undefined behavior, that is, usage of the programming language for which the language standard does not formally define the outcome.
+An example of such undefined behavior is the access of array indices beyond an array's capacity or the freeing of already freed memory.
+Such cases are covered by the restrictiveness of the Rust compiler, which among others performs array boundary checks, and most importantly the Rust ownership model and its borrow checker.
+While other languages try to solve the problem of memory leaks by using garbage collectors, which are mechanisms in a programming language's runtime that frequently check if a certain memory area is still referenced by any variables, the Rust ownership model ensures that the pointer to a specific memory area is held by only one variable.
+The ownership of such memory can moved between scopes, but can only ever be held by one scope at the same time.
+When the owner is \textit{dropped}, for example, when it goes out of scope, the memory is freed.
+To be able to access this memory by multiple functions at the same time, Rust supports the concept of references, similar to C++.
+Unlike C++ though, references cannot outlive the owner's scope or lifetime and only one reference with write access, called a mutable reference, can exist at the same time.
+By ensuring a variable's memory can only be written to from one specific location at any time, Rust solves the problem of data races, which are particularly interesting for concurrent programming.
+However, Rust also includes synchronization primitives such as mutexes or channels.
+These use \enquote{unsafe} implementations internally, but make promises to the user that ensure undefined behavior can never occur.
+Rust also allows optional access to the same memory from different locations by using reference counted smart pointers.
+They are similar to C++ shared pointers, but come with an important difference.
+In Rust, reference counted smart pointers can also hold immutable data.
+For mutable data, the additional data type of the reference counted cell allows taking mutable and immutable references to the data, but will enforce the borrow checking rules at runtime.
+
+Rust targets a wide array of native platforms as it is based on the LLVM\footnote{\url{https://llvm.org/} (accessed October 19, 2021)} compiler infrastructure.
+For WebGPU, a particularly interesting target is WebAssembly, an intermediate binary format that allows execution of code on the web not written in JavaScript which is compiled to a platform's native code at runtime by the browser~\cite{mdncontributorsCompilingRustWebAssembly2021}.
+Rust programs can be compiled directly to WebAssembly through the Rust build toolchain, and can even access and expose functions to JavaScript, making it possible to use any of the available Web APIs in a Rust program.
+Running Rust WebGPU programs natively on the desktop and on the web through WebAssembly is officially supported by the wgpu project~\cite{malyshauRunningWebWebGPU2021}.

@@ -1,0 +1,63 @@
+\chapter{Results and Discussion}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=0.98\linewidth]{figures/2021-10-05-sigmoid.png}
+  \caption{The final nonlinear ray casting application showing results of a spherical mirage function with sigmoid heat spread.}
+  \label{fig:final application}
+\end{figure}
+
+The final application is a sandbox for analyzing visual phenomena occurring in user provided vector fields (\cref{fig:final application}).
+The user can select from one of the predefined vector field functions or input their own function code that takes as parameters the previous and current position, the initial and current ray velocity, and the time passed since the ray was created.
+The velocity returned by this vector field function is optionally interpolated with the ray direction of the last iteration using the field weight slider value.
+The results are rendered non linearly in the main view using Runge-Kutta on the field function and linearly with ray outlines in the reference view.
+Both views are controllable through arcball camera controls and clicking on the main view visualizes the outline of the ray neighborhood of the chosen pixel on the reference view.
+An optional Lyapunov exponents overlay can be enabled through a dropdown menu to show the extent of a field's effects.
+The exponents are visualized in white on top of the main view, using the scaled exponents as opacity.
+The outline of the exponents can also be visualized as a ray outline mesh on the reference view using the outline button.
+An optional high accuracy mode can be triggered by the enhance button to ensure the field integration is not influenced too much by the integration step size chosen for interactive rendering.
+
+The application includes nine predefined field functions.
+The four mirage functions perform continuous refraction by computing the refraction between the previous and the current ray position in the field function, where the refraction index of each position is determined by the air temperature.
+The temperature is calculated by interpolation between the core and the environmental temperature using the distance towards the heat source, either using point-point-distance for the spherical heat source or plane-point-distance for the plane heat source.
+Both variants have a linear and a sigmoid variant for computing the interpolation parameters, where the linear variant leads to a more visible border of the heat spread whereas the sigmoid variant leads to a smoother transition.
+Two translation functions show a rather simple way of manipulating the rays.
+Using the default camera parameters where the camera is looking into $z$-direction, the translation on the $x$-axis leads to objects being moved more to the right the further they are away from the camera, while the translation on the $z$-axis can make objects appear in the camera twice, once from the front and once from the back when the ray goes into the opposite direction.
+The rotation function takes initial ray direction and rotates it around the $z$-axis based on the time that has passed since the ray has been created.
+Furthermore, two chaotic systems are included, the Lorenz and Rössler attractors as used by Gröller~\cite{grollerNonlinearRayTracing1995}.
+\begin{figure}[!t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-10-05-spherical-linear-outline.png}
+    \caption{Using linear heat spread.}
+\end{subfigure}
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-10-05-sigmoid-outline.png}
+    \caption{Using sigmoid heat spread.}
+\end{subfigure}
+  \caption{Comparison of spherical mirage functions and their outlines.}
+  \label{fig:mirage-heat-spread-comparison}
+\end{figure}
+A side-by-side comparison of the spherical mirage functions with linear and sigmoid heat spread shows the difference of Lyapunov exponents very clearly (\cref{fig:mirage-heat-spread-comparison}.
+While the linear heat spread leads to a clear border between the inside of the heat field and the environment, the sigmoid heat spread is too smooth to be detected using the default settings.
+By increasing the central difference delta, the overlay is showing Lyapunov exponents based on the comparison of rays far more inside and far more outside the heat field.
+While the result is no clear border either, it allows visualisation of the heat field in image space as a whole, which can again be used to create the outline mesh for the reference view.
+The smoothness of the transition between environment and heat field can of course be noticed the most on this outline.
+While the linear heat spread shows a clear distinction between inside and outside the heat field in the ray casted image, the transition would barely be noticeable at first for the sigmoid heat spread if it was not for the Blinn-Phong illumination.
+This shows that the Blinn-Phong illumination increases the usability even for nonlinear ray casting as it gives an idea of the direction the rays are coming from before intersecting with a surface.
+These points of interest can then be further examined by clicking on the particular pixel, triggering the visualizing of that pixel's neighboring rays in the reference view.
+In \cref{fig:final application}, this has been done for the red mirage surface on the right half of the heat field.
+The reference view shows not only that the rays are bend into the direction of the red wall inside the heat field, but also that the ray neighborhood is stretched in positive and negative $y$-direction.
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=0.98\linewidth]{figures/2021-10-25-chrome-mac.png}
+  \caption{The final application running on macOS inside Google Chrome as WebAssembly, rendered through Dawn's Metal backend.}
+  \label{fig:chrome-mac}
+\end{figure}
+Finally, the application can not only be run natively on Windows machines, it can also be run macOS and Linux, either natively or inside the Google Chrome or Mozilla Firefox web browsers by compiling the application to WebAssembly (\cref{fig:chrome-mac}).
+Note that the WebGPU specification is still in flux.
+Thus, running the application inside the browser may require a nightly build of the specific browser and further configuration \cite{beaufortAccessModernGPU2021}.
+Furthermore, the application may not work in newer browser versions when the specification does not match the version the application was developed against.
+Fixing these incompatibilities is usually an easy task and has been done multiple times during the execution of this software practical.
+Once the standardisation process of WebGPU has been finished, there will be no more breaking changes in the API.

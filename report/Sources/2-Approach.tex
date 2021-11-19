@@ -1,0 +1,218 @@
+\chapter{Approach}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{figures/2021-05-05.png}
+  \caption{In the beginning there was linearity.}
+  \label{fig:simple-cornell-box}
+\end{figure}
+
+
+\noindent Before non-linear ray casting will be investigated, a simple linear ray caster is established as a foundation.
+By using compute shaders, the scheduling and coordination of work on the GPU can be coordinated rather easily.
+Although compute shaders are able to write to textures and the screen's current texture can be accessed for rendering, at the time of writing, the screen's texture only applies the render attachment usage flag, which means that only render passes can write to it~\cite{malyshauWebGPU2021}.
+Therefore, a render pass has to be used to present a compute shader's result to the screen.
+For this, a proxy geometry is used that covers the whole screen, that is, two triangles that form a quad.
+A texture with the screen's dimensions is bound to the compute pass for writing and to the render pass for reading.
+The texture is read from in the render pass's fragment shader, thus making the compute shader's result available to the user.
+To render the scene, a ray is cast from the camera center through every pixel of the screen~\cite{shirleyRayTracingOne2020}.
+The color of a ray's pixel is then determined by calculating intersections of the ray with objects in the scene.
+If no transparency or light are involved, the pixel's color is simply the color of the intersection closest to the camera.
+In case of meshes consisting of triangles, the intersection tests can be performed using the ray-triangle intersection algorithm by Möller and Trumbore~\cite{mollerFastMinimumStorage1997}.
+A simple scene commonly used for testing 3D graphics rendering is the Cornell Box\footnote{\url{http://www.graphics.cornell.edu/online/box/data.html} (accessed May 1, 2021)}.
+It consists of two differently sized boxes in a cube shaped room of which the front is open so the camera can see inside.
+For initial testing, it is sufficient to hardcode the triangle meshes inside the compute shader and iterate over each triangle to test for intersections with the ray.
+The color of the closest intersection is then written to the storage texture, which is presented through the additional render pass.
+To make it easier to tell the boxes apart from the walls without using lighting, the surface normals are used as colors~(\cref{fig:simple-cornell-box}).
+Allowing the user to interactively navigate the scene is useful for quickly testing the rendering of a scene from different positions and angles.
+While video games usually resolve to first person or third person cameras to give a sense of immersion, the arc ball camera by Shoemake~\cite{shoemakeARCBALLUserInterface1992} makes it possible to rotate and move the scene as a whole.
+For Rust, an implementation of this technique\footnote{\url{https://github.com/Twinklebear/arcball} (accessed May 6, 2021)} exists.
+The Rust arcball implementation can be incorporated into the described WebGPU ray caster by extracting the relevant camera parameters (origin, forward direction and upward direction) and using them instead of the hardcoded parameters in the compute shader when calculating the ray directions.
+To be able to pass these parameters to the shader, uniform buffers have to be used.
+The mouse input events on the window are passed directly to the camera handler, which then adjusts the camera parameters accordingly.
+The scene can now be moved, rotated and zoomed.
+Although the surface normals make it possible to tell the surfaces apart to some degree, surfaces with similar normals will receive the same colors and thus might appear as one if they are too close together, depending on the camera perspective.
+The Blinn-Phong illumination model~\cite{blinnModelsLightReflection1977} is a rather simple way of introducing lighting into a scene and helps with the distinction of such surfaces.
+Finally, to be able to load more scenes than the Cornell Box, the hardcoded meshes are replaced by two storage buffers: a vertex buffer that contains the position vectors of all vertices inside the scene and a face buffer that contains the indices of vertices that form a triangle.
+A simple file format for 3D models that has wide support by 3D modelling applications is the Wavefront OBJ\footnote{\url{https://www.loc.gov/preservation/digital/formats/fdd/fdd000507.shtml} (accessed October 11, 2021)}  format.
+Loader implementations for this format already exist in the Rust ecosystem, such as the \texttt{tobj}\footnote{\url{https://github.com/Twinklebear/tobj} (accessed May 13, 2021)} library.
+When dragging a file on the application window, the file's content is parsed by \texttt{tobj} and the vertices and indices are written to the respective buffers on the GPU.
+This concludes the linear foundation of the ray caster, which includes arcball camera controls, Blinn-Phong illumination and loading of Wavefront OBJ models~(\cref{fig:linear-ray-caster}).
+
+\begin{figure}[!t]
+  \centering$
+  \begin{array}{cc}
+  \includegraphics[width=0.45\linewidth]{figures/2021-05-16.png} &
+  \includegraphics[width=0.45\linewidth]{figures/2021-05-16-suzanne.png}
+  \end{array}$
+  \caption{A basic WebGPU ray caster with arcball camera controls, Blinn-Phong illumination and loading of external models.}
+  \label{fig:linear-ray-caster}
+\end{figure}
+
+On top of this linear foundation, a nonlinear ray caster can be built by extending the compute shader.
+The goal of this nonlinear ray caster is to evaluate the path of a ray inside a vector field, defined by a vector field function inside the shader.
+For this, the field function must be evaluated multiple times as the ray is traversed to determine the next direction of the ray.
+Intersection tests are then performed between these integration steps by checking for intersections along a linear path from one ray position to the next.
+If an intersection is found, the iteration of ray steps is stopped.
+A finite amount of steps must be defined to prevent the integration from becoming an infinite loop.
+Choosing this limit depends on the integration step size and the hardware the program is running on.
+To improve integration accuracy, fourth order Runge-Kutta is used.
+Applying a gravity center function similar to the one used by Gröller~\cite{grollerNonlinearRayTracing1995} results in a noticeable distortion towards the gravity center as can be seen in \cref{fig:gravity-center}.
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{figures/2021-05-25.png}
+  \caption{Nonlinear ray casting using fourth order Runge-Kutta and a gravity center function.}
+  \label{fig:gravity-center}
+\end{figure}
+
+Interactive experimentation requires the user to be able to insert custom functions into the application.
+As WGSL shaders are compiled from string source during runtime, this can be achieved by interpolating the string of the field function into the ray casting compute shader.
+To allow editing the field function graphically inside the application, a text input has to be rendered and keyboard events have to be processed.
+The egui\footnote{\url{https://github.com/emilk/egui} (accessed May 27, 2021)} library is able to handle input events in Rust windows and can render to wgpu textures.
+Next to text areas, egui also supports buttons, drop downs, checkboxes and image views.
+To make egui play nicely with the existing application, the ray caster texture is now displayed through an egui image view that is also responsible for handling the mouse input of the ray caster view.
+Giving egui the sovereignty over all user input to the application window has the benefit of automatic event delegation depending on which part of the window the user has clicked on or is hovering over with the mouse cursor.
+Additionally, egui abstracts mouse and touch events so that the ray caster camera controls will also work if the application is run on a tablet with a touch screen.
+When the user makes changes to the field function through the text area, the new field function source is interpolated into the ray caster compute shader.
+The changed shader is then compiled and used to create a new compute pipeline.
+The shader translation library naga used in wgpu is very fast~\cite{malyshauShaderTranslationBenchmark2021}, which makes it suitable for hot reloading shaders.
+In his paper on nonlinear ray tracing, Gröller~\cite{grollerNonlinearRayTracing1995} applies field functions of chaotic systems, such as the Lorenz or Rössler attractors.
+The direction of a particle in these fields only depends on the current position and a set of predefined constant parameters.
+Once a ray has entered the scene, its previous direction would be ignored as the new direction does not depend on it.
+By introducing a new parameter, the \textit{field weight}, the effect of the field on a ray's direction can be controlled.
+The user can control this parameter through a graphical range slider that starts at zero percent (field has no effect) and ends at hundred percent (field has full control).
+The field weight is then used for linear interpolation between the result of the field function and the ray's previous direction.
+
+\begin{figure}[!t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-06-20-p005.png}
+    \caption{Ray wavefronts for translation field function.}
+    \label{fig:reference-view-2d-translation}
+\end{subfigure}
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-06-20-rotation.png}
+    \caption{Ray wavefronts for rotation field function.}
+    \label{fig:reference-view-2d-rotation}
+\end{subfigure}
+  \caption{A two-dimensional reference view for visualizing ray paths as wavefronts.}
+  \label{fig:reference-view-2d}
+\end{figure}
+
+To give a better understanding of how the rays travel along the scene, the paths of selected rays are recorded.
+By sampling the position's of these rays at regular intervals and drawing them into a two-dimensional texture, the paths can be observed in the form of a wavefront.
+The two-dimensional texture of this reference view is then presented through egui using an image view (\cref{fig:reference-view-2d-translation}).
+As long as the selected rays travel mostly along an $x$-$y$-plane, the user can easily understand how the ray cast image is generated.
+For three-dimensional fields that do not primarily stay on the same $x$-$y$-plane, such as the chaotic systems used by Gröller~\cite{grollerNonlinearRayTracing1995} or a function that applies rotations to the vectors (\cref{fig:reference-view-2d-rotation}), the paths are harder to comprehend.
+Thus, a three-dimensional reference view with camera controls is needed (\cref{fig:ray-arrow-glyphs}).
+As this reference view only needs to visualize the sampled ray positions in a linear three-dimensional space, rasterization through render passes can be used.
+The mesh of the arrow glyph that will represent the ray position samples can be drawn multiple times through instancing.
+That way, only a minimum of memory transfer between CPU and GPU is needed.
+The positions of selected rays are sampled inside the compute shader and stored inside a buffer.
+This buffer is then applied to the instanced drawing so that the glyph is drawn once for every sample and each run of the vertex shader has access to the sample position, which is then applied as translation to the vertices.
+The camera controls reuse the arcball camera, but instead of extracting the camera parameters, a projection matrix is computed from the camera and applied to the vertices inside the vertex shader.
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=0.5\linewidth]{figures/2021-06-30-glyphs.png}
+  \caption{A three-dimensional reference view using arrow glyphs for visualisation of ray paths.}
+  \label{fig:ray-arrow-glyphs}
+\end{figure}
+The arrow glyph approach however does not emphasize which samples belong to the same ray.
+While the user might be able to determine that two glyphs that are spatially close to one another belong to the same ray, especially field functions with large gradients may not allow such a visual connection.
+Thus, another approach to ray path visualization is introduced.
+Instead of drawing multiple instanced arrow glyphs in the reference view, a multicolored three-dimensional mesh is constructed (\cref{fig:reference-view-3d-mesh-full}).
+This mesh is sampled from eight rays on the outline of the camera's view, that is, the four corner points and the middle points between them.
+Each ray is assigned a different color in the mesh, therefore visualizing how the individual rays of the mesh are transformed along the way.
+The index buffer for this triangular mesh can be precomputed once as each ray will sample a predefined amount of positions.
+Only the positions inside the vertex buffer are changed.
+The vertex buffer is then filled by the compute pass of the ray cast view and subsequently drawn by the render pass of the reference view.
+An optional wireframe mode further emphasizes the sampled rays as lines while preserving the overall mesh structure (\cref{fig:reference-view-3d-mesh-wireframe}).
+
+\begin{figure}[!t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-07-14.png}
+    \caption{Camera outline mesh in filled mode.}
+    \label{fig:reference-view-3d-mesh-full}
+\end{subfigure}
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-07-14-wireframe.png}
+    \caption{Camera outline mesh in wireframe mode.}
+    \label{fig:reference-view-3d-mesh-wireframe}
+\end{subfigure}
+  \caption{A three-dimensional reference view using a camera outline mesh for visualisation of ray paths.}
+  \label{fig:reference-view-3d-mesh}
+\end{figure}
+
+A more practical application of non linear ray casting is the simulation of mirages.
+Mirages can be expressed as field functions by computing the refraction between two points, that is, the previous and the current position of the ray.
+In combination with Runge-Kutta, this can approximate the continuous refraction inside a medium, such as heated air.
+As simplification, the heat spread of air is considered to be linear on a maximum distance defined inside the field function.
+For a heat source with spherical heat spread, the temperature is given by the distance from the current position towards the center of the heat source and for a plane heat source by the point-plane-distance.
+The temperature at a certain position is then calculated by linear interpolation between environmental temperature and the temperature at the heat source.
+For a temperature $T$, the refraction index of air is given as
+\begin{equation}
+    n = \frac{0.0000104 \cdot P \cdot (1 + P \cdot (60.1 - 0.972 \cdot T) \cdot 10^{-10})}{1 + 0.00366 \cdot T} ,
+\end{equation}
+where $P = 101325 \text{ Pa}$ is the nominal air pressure at sea level for $15$ degrees Celsius \cite{zhaoVisualSimulationHeat2007}.
+In the case of mirages, the camera outline mesh becomes less useful, as the rays on the outline may not be affected by the heat fields at all.
+Instead of rendering the outline of the camera view, the outline mesh of a selected area of the ray cast view can be visualized so that the user is able to pick points of interest that are visually distorted, such as the mirages inside the heat field.
+When the user clicks on a pixel inside the ray cast view, rays for eight neighboring pixel with a predefined distance from the chosen pixel are sampled, forming a mesh similar to the camera outline constructed before.
+For areas on the border of a mirage, this emphasizes how the surrounding rays travel into different direction.
+When all sampled rays lie inside the mirage, on the other hand, the mesh shows how the resulting image is distorted and stretched by the heat (\cref{fig:mirage-spherical-linear}).
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{figures/2021-08-04-spherical.png}
+  \caption{A mirage in a spherical heat field visualized by the outline of rays surrounding a chosen pixel.}
+  \label{fig:mirage-spherical-linear}
+\end{figure}
+The heat field itself can be further highlighted by extracting Lyapunov exponents and generating an overlay from them.
+To be able to extract the Lyapunov exponents for the ray cast view, the end position of each camera ray has to be stored inside the compute shader.
+Then, the gradient is constructed for each pixel by taking the central differences in $x$- and $y$-direction.
+The transpose of the gradient is multiplied with the gradient itself, resulting in a square matrix from which two eigenvalues are extracted.
+The Lyapunov exponent is then given as the square root of the larger eigenvalue.
+For the overlay, the Lyapunov exponent is scaled through an exponential function and filtered for large values, which are then drawn on top of the ray cast view in white with the scaled exponent as opacity (\cref{fig:lyapunov-exponent-overlay-sharp}).
+By increasing the delta used for computing the central differences, the overlay can optionally be smoothed (\cref{fig:lyapunov-exponent-overlay-smooth}).
+\begin{figure}[!t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-08-19.png}
+    \caption{Using a central difference delta of $1$.}
+    \label{fig:lyapunov-exponent-overlay-sharp}
+\end{subfigure}
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-08-19-smooth.png}
+    \caption{Using a central difference delta of $10$.}
+    \label{fig:lyapunov-exponent-overlay-smooth}
+\end{subfigure}
+  \caption{Lyapunov exponent overlay for visualizing diverging ray paths.}
+  \label{fig:lyapunov-exponent-overlay}
+\end{figure}
+Similar to the camera outline mesh before, a mesh can be constructed for the outline of the Lyapunov overlay by extracting a predefined amount of outermost points, which are then sampled to retrieve the vertices for the outline mesh.
+
+As the application is designed for interactive usage, the ray casting must be able to render frames in an adequate time.
+To keep frame time low, a relatively large step size must be chosen for Runge-Kutta.
+However, this step size must still be small enough so that the final result is very close to a frame rendered with a much smaller step size.
+For testing purposes, a high accuracy mode is introduced that re-renders the ray cast view with the same parameters and a small step size of $h = 0.001$.
+This high accuracy mode can be triggered through a button in the graphical user interface.
+Changing any parameters, including the camera perspective, switches the frame back to normal accuracy.
+Usage of the high accuracy mode revealed an incorrectness in the Runge-Kutta integration for the mirage functions.
+\begin{figure}[!t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-09-14-linear-main.png}
+    \caption{Using a large step size $h = 0.1$.}
+\end{subfigure}
+\begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\textwidth]{figures/2021-09-14-linear-high-accuracy-main.png}
+    \caption{Using a small step size $h = 0.001$.}
+\end{subfigure}
+  \caption{Comparison of an incorrectly integrated mirage function with different step sizes.}
+  \label{fig:incorrect-mirage-comparison}
+\end{figure}
+As can be seen in \cref{fig:incorrect-mirage-comparison}, rendering with a large step size results not only in vastly different mirages but also introduces a circle in the center that looks as if the sphere contained two entirely different fields.
+This was caused by a misconfiguration of parameters passed to the functions of the Runge-Kutta integration.
+Additionally to the linear heat spread functions, variants with sigmoid heat spread are implemented for both the spherical and the plane heat source to simulate a smoother transition between heat source and environmental temperature.
+Although the large step size generally looks more correct now, it still leads to some minor flaws for high gradients.
+By applying the smaller step size of $h = 0.001$ when a large gradient is detected and switching back to $h = 0.1$ once the gradient is small enough again, the application achieves a nice compromise between interactivity and accuracy.
