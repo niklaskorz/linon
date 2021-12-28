@@ -32,3 +32,6 @@ wasm-bindgen-futures = "0.4.27"
 web-sys = "0.3.22"
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
+
+[patch.crates-io]
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "2fa75aaf0569b3cfce93893ac384a0326ce2886d" }
