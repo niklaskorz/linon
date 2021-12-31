@@ -46,7 +46,7 @@ jobs:
           override: true
 
       - name: Dependencies
-        run: apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+        run: sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 
       - name: Build
         run: cargo build --all --release && strip target/release/linon
