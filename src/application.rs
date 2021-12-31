@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::cornell_box as cbox;
+use crate::egui_wgpu::EguiWgpu;
 use crate::functions::PredefinedFunction;
 use crate::main_view::{MainView, Settings};
 use crate::reference_view::ReferenceView;
@@ -43,11 +44,7 @@ pub struct Application {
     indices: u32,
     ray_samples_buffer: wgpu::Buffer,
     // egui
-    platform: egui_winit_platform::Platform,
-    rpass: egui_wgpu_backend::RenderPass,
-    #[cfg(not(target_arch = "wasm32"))]
-    start_time: std::time::Instant,
-    previous_frame_time: Option<f32>,
+    egui_wgpu: EguiWgpu,
     // gui state
     shader_error: Option<String>,
     field_weight: f32,
@@ -126,18 +123,10 @@ impl Application {
             mapped_at_creation: false,
         });
 
-        let platform =
-            egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
-                physical_width: size.width,
-                physical_height: size.height,
-                scale_factor: window.scale_factor(),
-                font_definitions: egui::FontDefinitions::default(),
-                style: Default::default(),
-            });
-        let mut rpass = egui_wgpu_backend::RenderPass::new(&device, surface_format, 1);
+        let mut egui_wgpu = EguiWgpu::new(window, &device, surface_format);
 
         let main_view = MainView::new(
-            &mut rpass,
+            &mut egui_wgpu.render_pass,
             &device,
             vertices_buffer.as_entire_binding(),
             faces_buffer.as_entire_binding(),
@@ -148,7 +137,7 @@ impl Application {
             discrete_gpu,
         );
         let reference_view = ReferenceView::new(
-            &mut rpass,
+            &mut egui_wgpu.render_pass,
             &device,
             vertices_buffer.as_entire_binding(),
             faces_buffer.as_entire_binding(),
@@ -169,11 +158,7 @@ impl Application {
             indices: indices.len() as u32,
             ray_samples_buffer,
             // egui
-            platform,
-            rpass,
-            #[cfg(not(target_arch = "wasm32"))]
-            start_time: std::time::Instant::now(),
-            previous_frame_time: None,
+            egui_wgpu,
             // gui state
             shader_error: None,
             field_weight: 1.0,
@@ -186,12 +171,8 @@ impl Application {
         })
     }
 
-    pub fn handle_event<T>(&mut self, winit_event: &winit::event::Event<T>) {
-        self.platform.handle_event(winit_event)
-    }
-
-    pub fn captures_event<T>(&self, winit_event: &winit::event::Event<T>) -> bool {
-        self.platform.captures_event(winit_event)
+    pub fn handle_event(&mut self, winit_event: &winit::event::WindowEvent) -> bool {
+        self.egui_wgpu.on_event(winit_event)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -240,11 +221,11 @@ impl Application {
     }
 
     fn show(&mut self) {
-        let ctx = &self.platform.context();
+        let ctx = &self.egui_wgpu.egui_ctx;
+        let rpass = &mut self.egui_wgpu.render_pass;
         let Self {
             main_view,
             reference_view,
-            rpass,
             shader_error,
             field_weight,
             mouse_pos,
@@ -261,19 +242,19 @@ impl Application {
         egui::SidePanel::left("Settings").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if egui::ComboBox::from_label("Overlay")
-                    .selected_text(*overlay_mode)
+                    .selected_text(overlay_mode.to_string())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
                             overlay_mode,
                             OverlayMode::Disabled,
-                            OverlayMode::Disabled,
+                            OverlayMode::Disabled.to_string(),
                         )
                         .clicked()
                             || ui
                                 .selectable_value(
                                     overlay_mode,
                                     OverlayMode::LyapunovExponents,
-                                    OverlayMode::LyapunovExponents,
+                                    OverlayMode::LyapunovExponents.to_string(),
                                 )
                                 .clicked()
                     })
@@ -497,33 +478,15 @@ impl Application {
         }
     }
 
-    pub fn render(&mut self, scale_factor: f32) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, window: &winit::window::Window) -> Result<(), wgpu::SurfaceError> {
         let frame = self.surface.get_current_texture()?;
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        #[cfg(not(target_arch = "wasm32"))]
-        self.platform
-            .update_time(self.start_time.elapsed().as_secs_f64());
-
-        // Begin frame
-        #[cfg(not(target_arch = "wasm32"))]
-        let start = std::time::Instant::now();
-        self.platform.begin_frame();
-
-        // Show UI
+        self.egui_wgpu.begin_frame(window);
         self.show();
-
-        // End frame
-        let (_, paint_commands) = self.platform.end_frame(None);
-        let paint_jobs = self.platform.context().tessellate(paint_commands);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let frame_time = (std::time::Instant::now() - start).as_secs_f32();
-            self.previous_frame_time = Some(frame_time);
-        }
+        let (_, shapes) = self.egui_wgpu.end_frame(window);
 
         if self.main_view.needs_redraw || self.reference_view.needs_redraw {
             let mut encoder = self
@@ -546,31 +509,8 @@ impl Application {
             self.queue.submit(Some(encoder.finish()));
         }
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("gui_encoder"),
-            });
-
-        let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
-            physical_width: self.surface_config.width,
-            physical_height: self.surface_config.height,
-            scale_factor,
-        };
-        self.rpass.update_texture(
-            &self.device,
-            &self.queue,
-            &self.platform.context().texture(),
-        );
-        self.rpass.update_user_textures(&self.device, &self.queue);
-        self.rpass
-            .update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
-
-        self.rpass
-            .execute(&mut encoder, &view, &paint_jobs, &screen_descriptor, None)
-            .unwrap();
-
-        self.queue.submit(Some(encoder.finish()));
+        self.egui_wgpu
+            .paint(window, &self.device, &self.queue, &view, shapes);
         frame.present();
 
         Ok(())

@@ -75,13 +75,15 @@ impl Default for CodeTheme {
 impl CodeTheme {
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
-            *ctx.memory()
-                .id_data
-                .get_or_insert_with(egui::Id::new("dark"), CodeTheme::dark)
+            ctx.memory()
+                .data
+                .get_persisted(egui::Id::new("dark"))
+                .unwrap_or_else(CodeTheme::dark)
         } else {
-            *ctx.memory()
-                .id_data
-                .get_or_insert_with(egui::Id::new("light"), CodeTheme::light)
+            ctx.memory()
+                .data
+                .get_persisted(egui::Id::new("light"))
+                .unwrap_or_else(CodeTheme::light)
         }
     }
 }

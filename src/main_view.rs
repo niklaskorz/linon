@@ -4,7 +4,6 @@ use crate::{
     texture::Texture,
 };
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
-use egui_wgpu_backend::epi::TextureAllocator;
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
 
@@ -557,7 +556,6 @@ impl MainView {
     ) {
         let width = width / self.downscale_factor;
         let height = height / self.downscale_factor;
-        rpass.free(self.texture_id);
         self.texture = Texture::new(
             device,
             (width, height),

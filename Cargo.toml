@@ -16,9 +16,9 @@ futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.15"
-egui_winit_platform = "0.12"
-egui_wgpu_backend = "0.15"
+egui = "0.16"
+egui-winit = "0.16.0"
+egui_wgpu_backend = "0.16"
 wgpu = "0.12"
 syntect = { version = "4", default-features = false, features = ["default-fancy"] }
 
@@ -32,3 +32,5 @@ wasm-bindgen-futures = "0.4.27"
 web-sys = "0.3.22"
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
+
+[features]

@@ -1,6 +1,7 @@
 mod application;
 mod arcball;
 mod cornell_box;
+mod egui_wgpu;
 mod functions;
 mod main_view;
 mod ray_samples;
@@ -13,12 +14,12 @@ use anyhow::Result;
 use application::Application;
 #[cfg(not(target_arch = "wasm32"))]
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use winit::event::ElementState;
-use winit::window::Fullscreen;
 use std::rc::Rc;
 use std::sync::mpsc::{channel, Sender};
 use std::{ffi::OsStr, fs};
 use winit::dpi::LogicalSize;
+use winit::event::ElementState;
+use winit::window::Fullscreen;
 use winit::{
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -55,9 +56,10 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
     };
 
     event_loop.run(move |event, _, control_flow| {
-        app.handle_event(&event);
-        if app.captures_event(&event) {
-            return;
+        if let Event::WindowEvent { ref event, .. } = event {
+            if app.handle_event(&event) {
+                return;
+            }
         }
 
         match event {
@@ -97,7 +99,7 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
             } => match input.virtual_keycode {
                 Some(VirtualKeyCode::R) if input.state == ElementState::Pressed => {
                     app.load_default_model();
-                },
+                }
                 Some(VirtualKeyCode::F) if input.state == ElementState::Pressed => {
                     window.set_fullscreen(if window.fullscreen().is_some() {
                         None
@@ -108,7 +110,7 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
                 _ => {}
             },
             Event::RedrawRequested(_) => {
-                if let Err(e) = app.render(window.scale_factor() as f32) {
+                if let Err(e) = app.render(&window) {
                     if e == wgpu::SurfaceError::Outdated {
                         let size = window.inner_size();
                         app.resize(size.width, size.height);
