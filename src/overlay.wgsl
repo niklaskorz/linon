@@ -79,7 +79,6 @@ var mapping: texture_2d<f32>;
 [[group(0), binding(2)]]
 var target: texture_storage_2d<rgba8unorm, write>;
 
-[[block]]
 struct Settings {
     field_weight: f32;
     mouse_pos_x: f32;
@@ -91,7 +90,6 @@ struct Settings {
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
-[[block]]
 struct Exponents {
     data: array<f32>;
 };

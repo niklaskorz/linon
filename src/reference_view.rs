@@ -190,7 +190,7 @@ impl ReferenceView {
                 front_face: wgpu::FrontFace::Cw,
                 cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
-                clamp_depth: false,
+                unclipped_depth: false,
                 conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -201,6 +201,7 @@ impl ReferenceView {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
+            multiview: None,
         });
 
         let sample_indices = create_indices();
@@ -430,7 +431,7 @@ fn create_sample_render_pipeline(
             } else {
                 wgpu::PolygonMode::Fill
             },
-            clamp_depth: false,
+            unclipped_depth: false,
             conservative: false,
         },
         depth_stencil: Some(wgpu::DepthStencilState {
@@ -441,5 +442,6 @@ fn create_sample_render_pipeline(
             bias: wgpu::DepthBiasState::default(),
         }),
         multisample: wgpu::MultisampleState::default(),
+        multiview: None,
     })
 }

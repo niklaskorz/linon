@@ -4,7 +4,6 @@ var target: texture_storage_2d<rgba8unorm, write>;
 [[group(0), binding(1)]]
 var mapping: texture_storage_2d<rgba32float, write>;
 
-[[block]]
 struct Camera {
     origin: vec4<f32>;
     view_direction: vec4<f32>;
@@ -14,7 +13,6 @@ struct Camera {
 [[group(0), binding(2)]]
 var<uniform> camera: Camera;
 
-[[block]]
 struct Settings {
     field_weight: f32;
     mouse_pos_x: f32;
@@ -26,7 +24,6 @@ struct Settings {
 [[group(0), binding(3)]]
 var<uniform> settings: Settings;
 
-[[block]]
 struct Exponents {
     data: array<f32>;
 };
@@ -38,7 +35,6 @@ struct Vertex {
     y: f32;
     z: f32;
 };
-[[block]]
 struct Vertices {
     data: [[stride(12)]] array<Vertex>;
 };
@@ -50,7 +46,6 @@ struct Face {
     b: u32;
     c: u32;
 };
-[[block]]
 struct Faces {
     data: [[stride(12)]] array<Face>;
 };
@@ -61,7 +56,6 @@ struct RaySample {
     position: vec4<f32>;
     color: vec4<f32>;
 };
-[[block]]
 struct RaySamples {
     data: [[stride(32)]] array<RaySample, 800>;
 };
@@ -398,7 +392,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 1u) {
+            } else if (gid.x == 1u) {
                 // Bottom middle
                 for (var y: i32 = size.x - 1; y >= 0 && !found; y = y - 1) {
                     for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
@@ -408,7 +402,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 2u) {
+            } else if (gid.x == 2u) {
                 // Bottom right
                 for (var x: i32 = 0; x < size.x; x = x + 1) {
                     for (var y: i32 = 0; y < size.y; y = y + 1) {
@@ -418,7 +412,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 3u) {
+            } else if (gid.x == 3u) {
                 // Middle right
                 for (var x: i32 = size.x - 1; x >= 0 && !found; x = x - 1) {
                     for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
@@ -428,7 +422,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 4u) {
+            } else if (gid.x == 4u) {
                 // Top right
                 for (var x: i32 = 0; x < size.x; x = x + 1) {
                     for (var y: i32 = 0; y < size.y; y = y + 1) {
@@ -438,7 +432,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 5u) {
+            } else if (gid.x == 5u) {
                 // Top middle
                 for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
                     for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
@@ -448,7 +442,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 6u) {
+            } else if (gid.x == 6u) {
                 // Top left
                 for (var x: i32 = 0; x < size.x; x = x + 1) {
                     for (var y: i32 = 0; y < size.y; y = y + 1) {
@@ -458,7 +452,7 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
                         }
                     }
                 }
-            } elseif (gid.x == 7u) {
+            } else if (gid.x == 7u) {
                 // Middle left
                 for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
                     for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
