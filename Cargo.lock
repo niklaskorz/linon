@@ -566,7 +566,7 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 [[package]]
 name = "egui"
 version = "0.16.1"
-source = "git+https://github.com/niklaskorz/egui.git?rev=d94497e27ba3c954868a4af6e5bd5cd364230d0a#d94497e27ba3c954868a4af6e5bd5cd364230d0a"
+source = "git+https://github.com/niklaskorz/egui.git?rev=17623f34838f009262967c7ac1760a28e1297b92#17623f34838f009262967c7ac1760a28e1297b92"
 dependencies = [
  "ahash 0.7.4",
  "epaint",
@@ -576,7 +576,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.16.0"
-source = "git+https://github.com/niklaskorz/egui.git?rev=d94497e27ba3c954868a4af6e5bd5cd364230d0a#d94497e27ba3c954868a4af6e5bd5cd364230d0a"
+source = "git+https://github.com/niklaskorz/egui.git?rev=17623f34838f009262967c7ac1760a28e1297b92#17623f34838f009262967c7ac1760a28e1297b92"
 dependencies = [
  "copypasta",
  "egui",
@@ -605,7 +605,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.16.0"
-source = "git+https://github.com/niklaskorz/egui.git?rev=d94497e27ba3c954868a4af6e5bd5cd364230d0a#d94497e27ba3c954868a4af6e5bd5cd364230d0a"
+source = "git+https://github.com/niklaskorz/egui.git?rev=17623f34838f009262967c7ac1760a28e1297b92#17623f34838f009262967c7ac1760a28e1297b92"
 
 [[package]]
 name = "env_logger"
@@ -623,7 +623,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.16.0"
-source = "git+https://github.com/niklaskorz/egui.git?rev=d94497e27ba3c954868a4af6e5bd5cd364230d0a#d94497e27ba3c954868a4af6e5bd5cd364230d0a"
+source = "git+https://github.com/niklaskorz/egui.git?rev=17623f34838f009262967c7ac1760a28e1297b92#17623f34838f009262967c7ac1760a28e1297b92"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.4",

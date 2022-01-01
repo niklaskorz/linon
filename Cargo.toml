@@ -36,5 +36,5 @@ console_log = "0.2.0"
 [features]
 
 [patch.crates-io]
-egui = { git = "https://github.com/niklaskorz/egui.git", rev = "d94497e27ba3c954868a4af6e5bd5cd364230d0a" }
-egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "d94497e27ba3c954868a4af6e5bd5cd364230d0a" }
+egui = { git = "https://github.com/niklaskorz/egui.git", rev = "17623f34838f009262967c7ac1760a28e1297b92" }
+egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "17623f34838f009262967c7ac1760a28e1297b92" }
