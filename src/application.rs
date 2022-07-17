@@ -10,6 +10,7 @@ use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
 use wgpu::DeviceType;
+use winit::event_loop::EventLoop;
 use winit::window::Window;
 
 pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
@@ -57,7 +58,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn new(window: &Window) -> Result<Self> {
+    pub async fn new(window: &Window, event_loop: &EventLoop<()>) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
         let surface = unsafe { instance.create_surface(window) };
@@ -84,9 +85,7 @@ impl Application {
             )
             .await?;
 
-        let surface_format = surface
-            .get_preferred_format(&adapter)
-            .context("no compatible surface format found")?;
+        let surface_format = surface.get_supported_formats(&adapter)[0];
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
@@ -123,7 +122,7 @@ impl Application {
             mapped_at_creation: false,
         });
 
-        let mut egui_wgpu = EguiWgpu::new(window, &device, surface_format);
+        let mut egui_wgpu = EguiWgpu::new(event_loop, &device, surface_format);
 
         let main_view = MainView::new(
             &mut egui_wgpu.render_pass,

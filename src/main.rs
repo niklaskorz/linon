@@ -36,7 +36,7 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
 }
 
 async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
-    let mut app = Application::new(&window)
+    let mut app = Application::new(&window, &event_loop)
         .await
         .expect("creation of application failed");
 

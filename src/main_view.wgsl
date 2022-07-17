@@ -1,65 +1,65 @@
-[[group(0), binding(0)]]
-var target: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(0)
+var ttarget: texture_storage_2d<rgba8unorm, write>;
 
-[[group(0), binding(1)]]
+@group(0) @binding(1)
 var mapping: texture_storage_2d<rgba32float, write>;
 
 struct Camera {
-    origin: vec4<f32>;
-    view_direction: vec4<f32>;
-    up: vec4<f32>;
-    view_matrix: mat4x4<f32>;
-};
-[[group(0), binding(2)]]
+    origin: vec4<f32>,
+    view_direction: vec4<f32>,
+    up: vec4<f32>,
+    view_matrix: mat4x4<f32>,
+}
+@group(0) @binding(2)
 var<uniform> camera: Camera;
 
 struct Settings {
-    field_weight: f32;
-    mouse_pos_x: f32;
-    mouse_pos_y: f32;
-    overlay_mode: i32;
-    central_difference_delta: i32;
-    lyapunov_scaling: f32;
+    field_weight: f32,
+    mouse_pos_x: f32,
+    mouse_pos_y: f32,
+    overlay_mode: i32,
+    central_difference_delta: i32,
+    lyapunov_scaling: f32,
 };
-[[group(0), binding(3)]]
+@group(0) @binding(3)
 var<uniform> settings: Settings;
 
 struct Exponents {
-    data: array<f32>;
+    data: array<f32>,
 };
-[[group(0), binding(4)]]
+@group(0) @binding(4)
 var<storage, read> exponents: Exponents;
 
 struct Vertex {
-    x: f32;
-    y: f32;
-    z: f32;
+    x: f32,
+    y: f32,
+    z: f32,
 };
 struct Vertices {
-    data: [[stride(12)]] array<Vertex>;
+    data: array<Vertex>,
 };
-[[group(1), binding(0)]]
+@group(1) @binding(0)
 var<storage, read> vertices: Vertices;
 
 struct Face {
-    a: u32;
-    b: u32;
-    c: u32;
+    a: u32,
+    b: u32,
+    c: u32,
 };
 struct Faces {
-    data: [[stride(12)]] array<Face>;
+    data: array<Face>,
 };
-[[group(1), binding(1)]]
+@group(1) @binding(1)
 var<storage, read> faces: Faces;
 
 struct RaySample {
-    position: vec4<f32>;
-    color: vec4<f32>;
+    position: vec4<f32>,
+    color: vec4<f32>,
 };
 struct RaySamples {
-    data: [[stride(32)]] array<RaySample, 800>;
+    data: array<RaySample, 800>,
 };
-[[group(2), binding(0)]]
+@group(2) @binding(0)
 var<storage, read_write> ray_samples: RaySamples;
 
 let backface_culling: bool = false;
@@ -184,16 +184,16 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
         let a = vertices.data[face.a];
         let b = vertices.data[face.b];
         let c = vertices.data[face.c];
-        let triangle = array<vec3<f32>, 3>(
+        let ttriangle = array<vec3<f32>, 3>(
             vec3<f32>(a.x, a.y, a.z),
             vec3<f32>(b.x, b.y, b.z),
             vec3<f32>(c.x, c.y, c.z),
         );
-        t_new = hit_triangle(triangle, origin, direction);
+        t_new = hit_triangle(ttriangle, origin, direction);
         if (t_new > 0.0 && t_new < max_dist && (t < 0.0 || t_new < t)) {
             t = t_new;
-            d1 = triangle[1] - triangle[0];
-            d2 = triangle[2] - triangle[0];
+            d1 = ttriangle[1] - ttriangle[0];
+            d2 = ttriangle[2] - ttriangle[0];
         }
     }
     if (t > 0.0 && t < max_dist) {
@@ -220,8 +220,8 @@ fn ray_color(origin: vec3<f32>, direction: vec3<f32>, max_dist: f32) -> vec4<f32
 }
 
 struct NonlinearRayColorResult {
-    color: vec4<f32>;
-    mapping_point: vec4<f32>;
+    color: vec4<f32>,
+    mapping_point: vec4<f32>,
 };
 
 let adaptive_sampling: bool = true;
@@ -287,8 +287,8 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
     let h = 0.001;
     let steps: i32 = 5000;
 
-    var sample: RaySample;
-    sample.color = vec4<f32>(sample_color, 0.5);
+    var ssample: RaySample;
+    ssample.color = vec4<f32>(sample_color, 0.5);
     let sample_steps = 100;
     let sample_step_size = steps / sample_steps;
 
@@ -303,9 +303,9 @@ fn sample_rays(start_point: vec3<f32>, start_dir: vec3<f32>, samples_index: i32,
 
         let step_dir = cur_dir * h;
         if (i % sample_step_size == 0) {
-            sample.position = vec4<f32>(cur_point, 1.0);
+            ssample.position = vec4<f32>(cur_point, 1.0);
             let index = samples_index * sample_steps + i / sample_step_size;
-            ray_samples.data[index] = sample;
+            ray_samples.data[index] = ssample;
         }
 
         cur_point = cur_point + step_dir;
@@ -336,9 +336,9 @@ var<private> sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
 
 let sample_outline_rays: bool = false;
 
-[[stage(compute), workgroup_size(8, 8)]]
-fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
-    let size = textureDimensions(target);
+@compute @workgroup_size(8, 8)
+fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let size = textureDimensions(ttarget);
     let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
         return;
@@ -367,10 +367,10 @@ fn main_view([[builtin(global_invocation_id)]] gid: vec3<u32>) {
 
     if (linear_mode) {
         let color = ray_color(origin, dir, 100.0);
-        textureStore(target, coords, color);
+        textureStore(ttarget, coords, color);
     } else {
         let result = nonlinear_ray_color(origin, dir);
-        textureStore(target, coords, result.color);
+        textureStore(ttarget, coords, result.color);
         textureStore(mapping, coords, result.mapping_point);
     }
 

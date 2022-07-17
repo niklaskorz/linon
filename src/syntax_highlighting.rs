@@ -1,6 +1,6 @@
 // Based on https://github.com/emilk/egui/blob/0.15.0/egui_demo_lib/src/syntax_highlighting.rs
 // MIT License
-use egui::text::LayoutJob;
+use egui::{text::LayoutJob, FontId, FontFamily};
 
 /// View some code with syntax highlighing and selection.
 pub fn code_view_ui<S: egui::TextBuffer>(ui: &mut egui::Ui, code: &mut S) -> egui::Response {
@@ -15,13 +15,13 @@ pub fn code_view_ui<S: egui::TextBuffer>(ui: &mut egui::Ui, code: &mut S) -> egu
     egui::ScrollArea::vertical().show(ui, |ui| {
         ui.add(
             egui::TextEdit::multiline(code)
-                .text_style(egui::TextStyle::Monospace)
+                .font(FontId::new(14.0, FontFamily::Monospace))
                 .code_editor()
                 .desired_rows(10)
                 .lock_focus(true)
                 .layouter(&mut layouter),
         )
-    })
+    }).inner
 }
 
 /// Memoized Code highlighting
@@ -127,7 +127,7 @@ impl Highligher {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
-                egui::TextStyle::Monospace,
+                FontId::new(14.0, FontFamily::Monospace),
                 if theme.dark_mode {
                     egui::Color32::LIGHT_GRAY
                 } else {
@@ -173,7 +173,7 @@ impl Highligher {
                     leading_space: 0.0,
                     byte_range: as_byte_range(text, range),
                     format: TextFormat {
-                        style: egui::TextStyle::Monospace,
+                        font_id: FontId::new(14.0, FontFamily::Monospace),
                         color: text_color,
                         italics,
                         underline,

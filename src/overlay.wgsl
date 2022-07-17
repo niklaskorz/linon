@@ -72,28 +72,28 @@ fn mat2realEigenvector(m: mat2x2<f32>, lambda: f32) -> vec2<f32> {
 // --- end: translated from linalg.h
 
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var ray_casting: texture_2d<f32>;
-[[group(0), binding(1)]]
+@group(0) @binding(1)
 var mapping: texture_2d<f32>;
-[[group(0), binding(2)]]
-var target: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(2)
+var ttarget: texture_storage_2d<rgba8unorm, write>;
 
 struct Settings {
-    field_weight: f32;
-    mouse_pos_x: f32;
-    mouse_pos_y: f32;
-    overlay_mode: i32;
-    central_difference_delta: i32;
-    lyapunov_scaling: f32;
+    field_weight: f32,
+    mouse_pos_x: f32,
+    mouse_pos_y: f32,
+    overlay_mode: i32,
+    central_difference_delta: i32,
+    lyapunov_scaling: f32,
 };
-[[group(0), binding(3)]]
+@group(0) @binding(3)
 var<uniform> settings: Settings;
 
 struct Exponents {
-    data: array<f32>;
+    data: array<f32>,
 };
-[[group(0), binding(4)]]
+@group(0) @binding(4)
 var<storage, read_write> exponents: Exponents;
 
 fn lyapunov_exponent(coords: vec2<i32>) -> f32 {
@@ -134,15 +134,15 @@ fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
     return color;
 }
 
-[[stage(compute), workgroup_size(8, 8)]]
-fn overlay_desktop([[builtin(global_invocation_id)]] gid: vec3<u32>) {
-    let size = textureDimensions(target);
+@compute @workgroup_size(8, 8)
+fn overlay_desktop(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let size = textureDimensions(ttarget);
     let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
         return;
     }
     let color = overlay(coords, size);
-    textureStore(target, coords, color);
+    textureStore(ttarget, coords, color);
 }
 
 fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
@@ -153,13 +153,13 @@ fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
     return select(higher, lower, cutoff);
 }
 
-[[stage(compute), workgroup_size(8, 8)]]
-fn overlay_web([[builtin(global_invocation_id)]] gid: vec3<u32>) {
-    let size = textureDimensions(target);
+@compute @workgroup_size(8, 8)
+fn overlay_web(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let size = textureDimensions(ttarget);
     let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
     if (coords.x >= size.x || coords.y < 0) {
         return;
     }
     let color = overlay(coords, size);
-    textureStore(target, coords, vec4<f32>(srgb_from_linear(color.rgb), color.a));
+    textureStore(ttarget, coords, vec4<f32>(srgb_from_linear(color.rgb), color.a));
 }

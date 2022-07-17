@@ -16,10 +16,10 @@ futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.16"
-egui-winit = "0.16"
-egui_wgpu_backend = "0.16"
-wgpu = "0.12"
+egui = "0.18"
+egui-winit = "0.18"
+egui-wgpu = "0.18"
+wgpu = "0.13"
 syntect = { version = "4", default-features = false, features = ["default-fancy"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -36,5 +36,6 @@ console_log = "0.2.0"
 [features]
 
 [patch.crates-io]
-egui = { git = "https://github.com/niklaskorz/egui.git", rev = "17623f34838f009262967c7ac1760a28e1297b92" }
-egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "17623f34838f009262967c7ac1760a28e1297b92" }
+egui= { git = "https://github.com/emilk/egui.git", rev = "c062bca6eeac3c8db3aecfbaa99172e1c74da9fc" }
+egui-winit = { git = "https://github.com/emilk/egui.git", rev = "c062bca6eeac3c8db3aecfbaa99172e1c74da9fc" }
+egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "c062bca6eeac3c8db3aecfbaa99172e1c74da9fc" }

@@ -1,62 +1,62 @@
 struct Uniforms {
-    camera_pos: vec4<f32>;
-    view_projection: mat4x4<f32>;
+    camera_pos: vec4<f32>,
+    view_projection: mat4x4<f32>,
 };
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var<uniform> uniforms: Uniforms;
 
 struct Vertex {
-    x: f32;
-    y: f32;
-    z: f32;
+    x: f32,
+    y: f32,
+    z: f32,
 };
 struct Vertices {
-    data: [[stride(12)]] array<Vertex>;
+    data: array<Vertex>,
 };
-[[group(1), binding(0)]]
+@group(1) @binding(0)
 var<storage, read> vertices: Vertices;
 
 struct Face {
-    a: u32;
-    b: u32;
-    c: u32;
+    a: u32,
+    b: u32,
+    c: u32,
 };
 struct Faces {
-    data: [[stride(12)]] array<Face>;
+    data: array<Face>,
 };
-[[group(1), binding(1)]]
+@group(1) @binding(1)
 var<storage, read> faces: Faces;
 
 struct VertexInput {
-    [[builtin(vertex_index)]]
-    vertex_index: u32;
+    @builtin(vertex_index)
+    vertex_index: u32,
 };
 struct VertexOutput {
-    [[builtin(position)]]
-    clip_position: vec4<f32>;  
-    [[location(0)]]
-    position: vec3<f32>;
-    [[location(1)]]
-    normal: vec3<f32>;
-    [[location(2)]]
-    color: vec3<f32>;
+    @builtin(position)
+    clip_position: vec4<f32>,
+    @location(0)
+    position: vec3<f32>,
+    @location(1)
+    normal: vec3<f32>,
+    @location(2)
+    color: vec3<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn main_vertex(input: VertexInput) -> VertexOutput {
     let index = input.vertex_index / 3u;
     let face = faces.data[index];
     let a = vertices.data[face.a];
     let b = vertices.data[face.b];
     let c = vertices.data[face.c];
-    var triangle: array<vec3<f32>, 3> = array<vec3<f32>, 3>(
+    var ttriangle: array<vec3<f32>, 3> = array<vec3<f32>, 3>(
         vec3<f32>(a.x, a.y, a.z),
         vec3<f32>(b.x, b.y, b.z),
         vec3<f32>(c.x, c.y, c.z),
     );
-    let position = triangle[input.vertex_index % 3u];
-    let d1 = triangle[1] - triangle[0];
-    let d2 = triangle[2] - triangle[0];
+    let position = ttriangle[input.vertex_index % 3u];
+    let d1 = ttriangle[1] - ttriangle[0];
+    let d2 = ttriangle[2] - ttriangle[0];
 
     var output: VertexOutput;
     output.clip_position = uniforms.view_projection * vec4<f32>(position, 1.0);
@@ -96,31 +96,31 @@ fn main_fragment_shared(input: VertexOutput) -> vec3<f32> {
     return (ambient + diffuse + specular) * input.color;
 }
 
-[[stage(fragment)]]
-fn main_fragment(input: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn main_fragment(input: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(main_fragment_shared(input), 1.0);
 }
 
-[[stage(fragment)]]
-fn main_fragment_web(input: VertexOutput) -> [[location(0)]] vec4<f32> {
-    let linear = srgb_from_linear(main_fragment_shared(input));
-    return vec4<f32>(linear, 1.0);
+@fragment
+fn main_fragment_web(input: VertexOutput) -> @location(0) vec4<f32> {
+    let llinear = srgb_from_linear(main_fragment_shared(input));
+    return vec4<f32>(llinear, 1.0);
 }
 
 struct SampleVertexInput {
-    [[location(0)]]
-    position: vec4<f32>;
-    [[location(1)]]
-    color: vec4<f32>;
+    @location(0)
+    position: vec4<f32>,
+    @location(1)
+    color: vec4<f32>,
 };
 struct SampleVertexOutput {
-    [[builtin(position)]]
-    clip_position: vec4<f32>;  
-    [[location(0)]]
-    color: vec4<f32>;
+    @builtin(position)
+    clip_position: vec4<f32>,
+    @location(0)
+    color: vec4<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn sample_vertex(input: SampleVertexInput) -> SampleVertexOutput {
     var output: SampleVertexOutput;
     output.clip_position = uniforms.view_projection * input.position;
@@ -128,12 +128,12 @@ fn sample_vertex(input: SampleVertexInput) -> SampleVertexOutput {
     return output;
 }
 
-[[stage(fragment)]]
-fn sample_fragment(input: SampleVertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn sample_fragment(input: SampleVertexOutput) -> @location(0) vec4<f32> {
     return input.color;
 }
 
-[[stage(fragment)]]
-fn sample_fragment_web(input: SampleVertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn sample_fragment_web(input: SampleVertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(srgb_from_linear(input.color.rgb), input.color.a);
 }

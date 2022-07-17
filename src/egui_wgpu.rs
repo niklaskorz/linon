@@ -1,18 +1,24 @@
+use std::time::Duration;
+
+use egui::FullOutput;
+use egui_wgpu::renderer as egui_wgpu_backend;
+use winit::event_loop::EventLoop;
+
 pub struct EguiWgpu {
-    pub egui_ctx: egui::CtxRef,
+    pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
     pub render_pass: egui_wgpu_backend::RenderPass,
 }
 
 impl EguiWgpu {
     pub fn new(
-        window: &winit::window::Window,
+        event_loop: &EventLoop<()>,
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
     ) -> Self {
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(window),
+            egui_winit: egui_winit::State::new(event_loop),
             render_pass: egui_wgpu_backend::RenderPass::new(device, output_format, 1),
         }
     }
@@ -36,12 +42,12 @@ impl EguiWgpu {
     pub fn end_frame(
         &mut self,
         window: &winit::window::Window,
-    ) -> (bool, Vec<egui::epaint::ClippedShape>) {
-        let (egui_output, shapes) = self.egui_ctx.end_frame();
-        let needs_repaint = egui_output.needs_repaint;
+    ) -> (bool, FullOutput) {
+        let output = self.egui_ctx.end_frame();
+        let needs_repaint = Duration::is_zero(&output.repaint_after);
         self.egui_winit
-            .handle_output(window, &self.egui_ctx, egui_output);
-        (needs_repaint, shapes)
+            .handle_platform_output(window, &self.egui_ctx, output.platform_output.clone());
+        (needs_repaint, output)
     }
 
     pub fn paint(
@@ -50,24 +56,24 @@ impl EguiWgpu {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         color_attachment: &wgpu::TextureView,
-        shapes: Vec<egui::epaint::ClippedShape>,
+        output: FullOutput
     ) {
-        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let clipped_meshes = self.egui_ctx.tessellate(output.shapes);
 
         let size = window.inner_size();
         let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
-            physical_width: size.width,
-            physical_height: size.height,
-            scale_factor: self.egui_ctx.pixels_per_point(),
+            size_in_pixels: [size.width, size.height],
+            pixels_per_point: self.egui_ctx.pixels_per_point(),
         };
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("egui_wgpu_encoder"),
         });
 
-        self.render_pass
-            .update_texture(device, queue, &self.egui_ctx.font_image());
-        self.render_pass.update_user_textures(device, queue);
+        for (id, delta) in output.textures_delta.set {
+            self.render_pass
+                .update_texture(device, queue, id, &delta);
+        }
         self.render_pass
             .update_buffers(device, queue, &clipped_meshes, &screen_descriptor);
 
@@ -78,9 +84,13 @@ impl EguiWgpu {
                 &clipped_meshes,
                 &screen_descriptor,
                 None,
-            )
-            .unwrap();
+            );
+
+        for id in output.textures_delta.free {
+            self.render_pass.free_texture(&id);
+        }
 
         queue.submit(Some(encoder.finish()));
+
     }
 }

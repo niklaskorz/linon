@@ -6,6 +6,7 @@ use crate::{
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
+use egui_wgpu::renderer as egui_wgpu_backend;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -91,7 +92,7 @@ impl MainView {
         let downscale_factor = if discrete_gpu { 1 } else { 2 };
 
         let shader_src = include_str!("main_view.wgsl");
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&with_field_function(
                 shader_src,
@@ -109,9 +110,9 @@ impl MainView {
             wgpu::TextureFormat::Rgba8Unorm,
             true,
         );
-        let texture_id = rpass.egui_texture_from_wgpu_texture(
+        let texture_id = rpass.register_native_texture(
             device,
-            &texture.texture,
+            &texture.view,
             wgpu::FilterMode::Nearest,
         );
 
@@ -322,7 +323,7 @@ impl MainView {
         });
 
         let overlay_shader_src = include_str!("overlay.wgsl");
-        let overlay_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let overlay_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("overlay_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(overlay_shader_src)),
         });
@@ -563,9 +564,9 @@ impl MainView {
             wgpu::TextureFormat::Rgba8Unorm,
             true,
         );
-        self.texture_id = rpass.egui_texture_from_wgpu_texture(
+        self.texture_id = rpass.register_native_texture(
             device,
-            &self.texture.texture,
+            &self.texture.view,
             wgpu::FilterMode::Nearest,
         );
         self.ray_casting_texture = Texture::new(
@@ -659,7 +660,7 @@ impl MainView {
             tx.send(e).expect("sending error failed");
         });
 
-        let compute_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&src)),
         });
@@ -831,11 +832,11 @@ impl MainView {
         cpass.set_bind_group(0, &self.compute_bind_group, &[]);
         cpass.set_bind_group(1, &self.mesh_bind_group, &[]);
         cpass.set_bind_group(2, &self.ray_samples_bind_group, &[]);
-        cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
+        cpass.dispatch_workgroups((width + 7) / 8, (height + 7) / 8, 1);
 
         cpass.set_pipeline(&self.overlay_pipeline);
         cpass.set_bind_group(0, &self.overlay_bind_group, &[]);
-        cpass.dispatch((width + 7) / 8, (height + 7) / 8, 1);
+        cpass.dispatch_workgroups((width + 7) / 8, (height + 7) / 8, 1);
 
         self.needs_redraw = false;
     }

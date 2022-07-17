@@ -1,5 +1,6 @@
 use cgmath::{Vector2, Vector3};
 use wgpu::util::DeviceExt;
+use egui_wgpu::renderer as egui_wgpu_backend;
 
 use crate::{
     application::INITIAL_SIDEBAR_WIDTH,
@@ -51,7 +52,7 @@ impl ReferenceView {
         center: Vector3<f32>,
     ) -> Self {
         let shader_src = include_str!("reference_view.wgsl");
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("reference_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_src)),
         });
@@ -65,9 +66,9 @@ impl ReferenceView {
             wgpu::TextureFormat::Rgba8UnormSrgb,
             false,
         );
-        let texture_id = rpass.egui_texture_from_wgpu_texture(
+        let texture_id = rpass.register_native_texture(
             device,
-            &texture.texture,
+            &texture.view,
             wgpu::FilterMode::Linear,
         );
 
@@ -175,14 +176,14 @@ impl ReferenceView {
                 entry_point: "main_fragment",
                 #[cfg(target_arch = "wasm32")]
                 entry_point: "main_fragment_web",
-                targets: &[wgpu::ColorTargetState {
+                targets: &[Some(wgpu::ColorTargetState {
                     format: texture.format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent::REPLACE,
                         alpha: wgpu::BlendComponent::REPLACE,
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
-                }],
+                })],
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -344,7 +345,7 @@ impl ReferenceView {
     ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("rpass"),
-            color_attachments: &[wgpu::RenderPassColorAttachment {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &self.texture.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -356,7 +357,7 @@ impl ReferenceView {
                     }),
                     store: true,
                 },
-            }],
+            })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
@@ -404,7 +405,7 @@ fn create_sample_render_pipeline(
             entry_point: "sample_fragment",
             #[cfg(target_arch = "wasm32")]
             entry_point: "sample_fragment_web",
-            targets: &[wgpu::ColorTargetState {
+            targets: &[Some(wgpu::ColorTargetState {
                 format: texture_format,
                 blend: Some(wgpu::BlendState {
                     color: wgpu::BlendComponent {
@@ -419,7 +420,7 @@ fn create_sample_render_pipeline(
                     },
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
-            }],
+            })],
         }),
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
