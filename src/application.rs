@@ -9,7 +9,6 @@ use crate::syntax_highlighting::code_view_ui;
 use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
-use wgpu::DeviceType;
 use winit::event_loop::EventLoop;
 use winit::window::Window;
 
@@ -74,7 +73,7 @@ impl Application {
             .await
             .context("no compatible adapter found")?;
         #[cfg(not(target_arch = "wasm32"))]
-        let discrete_gpu = adapter.get_info().device_type == DeviceType::DiscreteGpu;
+        let discrete_gpu = adapter.get_info().device_type == wgpu::DeviceType::DiscreteGpu;
         #[cfg(target_arch = "wasm32")]
         let discrete_gpu = false;
         let (device, queue) = adapter
@@ -220,6 +219,7 @@ impl Application {
         );
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn reload_compute_shader(&mut self, new_src: &str) -> Result<(), wgpu::Error> {
         self.main_view
             .reload_shader(&self.device, Some(new_src), self.field_function.clone())

@@ -15,8 +15,9 @@ use application::Application;
 #[cfg(not(target_arch = "wasm32"))]
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::rc::Rc;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc::{channel, Sender};
-use std::{ffi::OsStr, fs};
+use std::ffi::OsStr;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
 use winit::window::Fullscreen;
@@ -28,7 +29,7 @@ use winit::{
 
 #[cfg(not(target_arch = "wasm32"))]
 fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<RecommendedWatcher> {
-    let mut watcher: RecommendedWatcher = RecommendedWatcher::new(move |res| {
+    let mut watcher = notify::recommended_watcher(move |res| {
         tx.send(res).expect("sending watch event failed");
     })?;
     watcher.watch("src/main_view.wgsl".as_ref(), RecursiveMode::NonRecursive)?;
@@ -130,7 +131,7 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
                     }
                     if reload_compute_shader {
                         println!("Compute shader has changed");
-                        let source = fs::read_to_string("src/main_view.wgsl")
+                        let source = std::fs::read_to_string("src/main_view.wgsl")
                             .expect("reading compute shader failed");
                         if let Err(e) = app.reload_compute_shader(&source) {
                             println!("Shader reload failed: {:?}", e);
@@ -179,7 +180,7 @@ fn main() -> Result<()> {
             body.client_height(),
         ));
         let resize_closure =
-            wasm_bindgen::closure::Closure::wrap(Box::new(move |e: web_sys::Event| {
+            wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::Event| {
                 window.set_inner_size(winit::dpi::LogicalSize::new(
                     body.client_width(),
                     body.client_height(),

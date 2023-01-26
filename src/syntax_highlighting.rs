@@ -58,7 +58,6 @@ impl Default for Highlighter {
 }
 
 impl Highlighter {
-    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, code: &str, lang: &str) -> LayoutJob {
         self.highlight_impl(code, lang).unwrap_or_else(|| {
             // Fallback:
