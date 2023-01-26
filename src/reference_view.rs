@@ -45,7 +45,7 @@ pub struct ReferenceView {
 
 impl ReferenceView {
     pub fn new(
-        rpass: &mut egui_wgpu_backend::RenderPass,
+        rpass: &mut egui_wgpu_backend::Renderer,
         device: &wgpu::Device,
         vertices_buffer_binding: wgpu::BindingResource,
         faces_buffer_binding: wgpu::BindingResource,
@@ -311,7 +311,7 @@ impl ReferenceView {
             self.texture_id,
             (INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH),
         );
-        let input = ui.input();
+        let input = ui.input(|i| i.clone());
         if let Some(pos) = resp.hover_pos() {
             if input.key_pressed(egui::Key::Space) {
                 self.reset_camera(queue);
@@ -330,7 +330,7 @@ impl ReferenceView {
                     (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
                 );
             }
-            let scroll_delta = ui.input().scroll_delta;
+            let scroll_delta = ui.input(|i| i.scroll_delta);
             if scroll_delta.y != 0.0 {
                 self.on_zoom(queue, scroll_delta.y);
             }

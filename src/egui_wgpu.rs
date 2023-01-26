@@ -7,7 +7,7 @@ use winit::event_loop::EventLoop;
 pub struct EguiWgpu {
     pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
-    pub render_pass: egui_wgpu_backend::RenderPass,
+    pub renderer: egui_wgpu_backend::Renderer,
 }
 
 impl EguiWgpu {
@@ -19,7 +19,7 @@ impl EguiWgpu {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(event_loop),
-            render_pass: egui_wgpu_backend::RenderPass::new(device, output_format, 1),
+            renderer: egui_wgpu_backend::Renderer::new(device, output_format, None, 1),
         }
     }
 
@@ -30,7 +30,7 @@ impl EguiWgpu {
     ///
     /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) -> bool {
-        self.egui_winit.on_event(&self.egui_ctx, event)
+        self.egui_winit.on_event(&self.egui_ctx, event).consumed
     }
 
     pub fn begin_frame(&mut self, window: &winit::window::Window) {
@@ -39,14 +39,14 @@ impl EguiWgpu {
     }
 
     /// Returns `needs_repaint` and shapes to draw.
-    pub fn end_frame(
-        &mut self,
-        window: &winit::window::Window,
-    ) -> (bool, FullOutput) {
+    pub fn end_frame(&mut self, window: &winit::window::Window) -> (bool, FullOutput) {
         let output = self.egui_ctx.end_frame();
         let needs_repaint = Duration::is_zero(&output.repaint_after);
-        self.egui_winit
-            .handle_platform_output(window, &self.egui_ctx, output.platform_output.clone());
+        self.egui_winit.handle_platform_output(
+            window,
+            &self.egui_ctx,
+            output.platform_output.clone(),
+        );
         (needs_repaint, output)
     }
 
@@ -56,10 +56,11 @@ impl EguiWgpu {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         color_attachment: &wgpu::TextureView,
-        output: FullOutput
+        output: FullOutput,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(output.shapes);
 
+        self.egui_ctx.set_pixels_per_point(window.scale_factor() as f32);
         let size = window.inner_size();
         let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
             size_in_pixels: [size.width, size.height],
@@ -71,26 +72,38 @@ impl EguiWgpu {
         });
 
         for (id, delta) in output.textures_delta.set {
-            self.render_pass
-                .update_texture(device, queue, id, &delta);
+            self.renderer.update_texture(device, queue, id, &delta);
         }
-        self.render_pass
-            .update_buffers(device, queue, &clipped_meshes, &screen_descriptor);
 
-        self.render_pass
-            .execute(
-                &mut encoder,
-                color_attachment,
-                &clipped_meshes,
-                &screen_descriptor,
-                None,
-            );
+        self.renderer.update_buffers(
+            device,
+            queue,
+            &mut encoder,
+            &clipped_meshes,
+            &screen_descriptor,
+        );
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &color_attachment,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                label: Some("egui_render"),
+            });
+            self.renderer
+                .render(&mut render_pass, &clipped_meshes, &screen_descriptor);
+        }
 
         for id in output.textures_delta.free {
-            self.render_pass.free_texture(&id);
+            self.renderer.free_texture(&id);
         }
 
         queue.submit(Some(encoder.finish()));
-
     }
 }

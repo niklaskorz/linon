@@ -67,10 +67,10 @@ fn main_vertex(input: VertexInput) -> VertexOutput {
     return output;
 }
 
-let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-let ambient_strength: f32 = 0.01;
-let shininess: f32 = 64.0;
-let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
+const light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+const ambient_strength: f32 = 0.01;
+const shininess: f32 = 64.0;
+const object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
 fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
     // Based on https://gamedev.stackexchange.com/a/148088

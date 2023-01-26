@@ -26,6 +26,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
+            view_formats: &[format],
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | if storage {
                     wgpu::TextureUsages::STORAGE_BINDING
@@ -67,6 +68,7 @@ impl DepthTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
+            view_formats: &[format],
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());

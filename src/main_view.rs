@@ -79,7 +79,7 @@ pub struct MainView {
 
 impl MainView {
     pub fn new(
-        rpass: &mut egui_wgpu_backend::RenderPass,
+        rpass: &mut egui_wgpu_backend::Renderer,
         device: &wgpu::Device,
         vertices_buffer_binding: wgpu::BindingResource,
         faces_buffer_binding: wgpu::BindingResource,
@@ -549,7 +549,7 @@ impl MainView {
 
     pub fn resize_texture(
         &mut self,
-        rpass: &mut egui_wgpu_backend::RenderPass,
+        rpass: &mut egui_wgpu_backend::Renderer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         width: u32,
@@ -656,9 +656,9 @@ impl MainView {
         let src = with_field_function(new_src.unwrap_or(&self.shader_src), &field_function);
 
         let (tx, rx) = channel::<wgpu::Error>();
-        device.on_uncaptured_error(move |e: wgpu::Error| {
+        device.on_uncaptured_error(Box::new(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
-        });
+        }));
 
         let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -671,7 +671,7 @@ impl MainView {
             entry_point: "main_view",
         });
 
-        device.on_uncaptured_error(|e| panic!("{}", e));
+        device.on_uncaptured_error(Box::new(|e| panic!("{}", e)));
 
         if let Ok(err) = rx.try_recv() {
             return Err(err);
@@ -691,7 +691,7 @@ impl MainView {
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
-        rpass: &mut egui_wgpu_backend::RenderPass,
+        rpass: &mut egui_wgpu_backend::Renderer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Option<[f32; 2]> {
@@ -705,7 +705,7 @@ impl MainView {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
         let resp = ui.image(self.texture_id, size);
-        let input = ui.input();
+        let input = ui.input(|i| i.clone());
         if input.pointer.any_released() && !input.pointer.any_down() {
             self.enable_adaptive_sampling(device);
         }
@@ -735,7 +735,7 @@ impl MainView {
                     (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
                 );
             }
-            let scroll_delta = ui.input().scroll_delta;
+            let scroll_delta = ui.input(|i| i.scroll_delta);
             if scroll_delta.y != 0.0 {
                 self.on_zoom(queue, scroll_delta.y);
             }

@@ -8,23 +8,24 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-image = "0.23"
-winit = "0.26"
+image = "0.24"
+winit = "0.27"
 cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.18"
-egui-winit = "0.18"
-egui-wgpu = "0.18"
-wgpu = "0.13"
-syntect = { version = "4", default-features = false, features = ["default-fancy"] }
+egui = "0.20"
+egui-winit = "0.20"
+egui-wgpu = "0.20"
+wgpu = "0.15"
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+enum-map = "2.4.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 notify = "5.0.0-pre.13"
-env_logger = "0.9"
+env_logger = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.77"
@@ -36,6 +37,6 @@ console_log = "0.2.0"
 [features]
 
 [patch.crates-io]
-egui= { git = "https://github.com/emilk/egui.git", rev = "c062bca6eeac3c8db3aecfbaa99172e1c74da9fc" }
-egui-winit = { git = "https://github.com/emilk/egui.git", rev = "c062bca6eeac3c8db3aecfbaa99172e1c74da9fc" }
-egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "c062bca6eeac3c8db3aecfbaa99172e1c74da9fc" }
+egui = { git = "https://github.com/emilk/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
+egui-winit = { git = "https://github.com/emilk/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
+egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }

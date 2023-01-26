@@ -62,18 +62,18 @@ struct RaySamples {
 @group(2) @binding(0)
 var<storage, read_write> ray_samples: RaySamples;
 
-let backface_culling: bool = false;
+const backface_culling: bool = false;
 
-let light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-let ambient_strength: f32 = 0.01;
-let shininess: f32 = 64.0;
-let object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
+const light_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+const ambient_strength: f32 = 0.01;
+const shininess: f32 = 64.0;
+const object_color: vec3<f32> = vec3<f32>(0.5, 0.5, 0.5);
 
-let linear_mode: bool = false;
-let use_lighting: bool = true;
-let eps: f32 = 0.0000001;
+const linear_mode: bool = false;
+const use_lighting: bool = true;
+const eps: f32 = 0.0000001;
 
-let PI: f32 = 3.141592653589793;
+const PI: f32 = 3.141592653589793;
 
 fn rotateX(v: vec3<f32>, phi: f32) -> vec3<f32> {
     return mat3x3<f32>(
@@ -224,7 +224,7 @@ struct NonlinearRayColorResult {
     mapping_point: vec4<f32>,
 };
 
-let adaptive_sampling: bool = true;
+const adaptive_sampling: bool = true;
 
 fn nonlinear_ray_color(start_point: vec3<f32>, start_dir: vec3<f32>) -> NonlinearRayColorResult {
     var result: NonlinearRayColorResult;
@@ -334,7 +334,7 @@ var<private> sample_colors: array<vec3<f32>, 8> = array<vec3<f32>, 8>(
     vec3<f32>(0.5, 0.0, 0.5),                           
 );
 
-let sample_outline_rays: bool = false;
+const sample_outline_rays: bool = false;
 
 @compute @workgroup_size(8, 8)
 fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {

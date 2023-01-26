@@ -2,14 +2,14 @@
 // MIT License
 use egui::{text::LayoutJob, FontId, FontFamily};
 
-/// View some code with syntax highlighing and selection.
+/// View some code with syntax highlighting and selection.
 pub fn code_view_ui<S: egui::TextBuffer>(ui: &mut egui::Ui, code: &mut S) -> egui::Response {
     let language = "rs";
-    let theme = CodeTheme::from_memory(ui.ctx());
 
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), &theme, string, language);
-        ui.fonts().layout_job(layout_job)
+        let layout_job = highlight(ui.ctx(), string, language);
+        // layout_job.wrap.max_width = wrap_width; // no wrapping
+        ui.fonts(|f| f.layout_job(layout_job))
     };
 
     egui::ScrollArea::vertical().show(ui, |ui| {
@@ -25,93 +25,30 @@ pub fn code_view_ui<S: egui::TextBuffer>(ui: &mut egui::Ui, code: &mut S) -> egu
 }
 
 /// Memoized Code highlighting
-pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highligher {
-        fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
-            self.highlight(theme, code, lang)
+pub fn highlight(ctx: &egui::Context, code: &str, language: &str) -> LayoutJob {
+    impl egui::util::cache::ComputerMut<(&str, &str), LayoutJob> for Highlighter {
+        fn compute(&mut self, (code, lang): (&str, &str)) -> LayoutJob {
+            self.highlight(code, lang)
         }
     }
 
-    type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highligher>;
+    type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
-    let mut memory = ctx.memory();
-    let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
-    highlight_cache.get((theme, code, language))
+    ctx.memory_mut(|mem| {
+        mem.caches
+            .cache::<HighlightCache>()
+            .get((code, language))
+    })
 }
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-enum SyntectTheme {
-    Base16MochaDark,
-    SolarizedLight,
-}
-
-impl SyntectTheme {
-    fn syntect_key_name(&self) -> &'static str {
-        match self {
-            Self::Base16MochaDark => "base16-mocha.dark",
-            Self::SolarizedLight => "Solarized (light)",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct CodeTheme {
-    dark_mode: bool,
-
-    syntect_theme: SyntectTheme,
-}
-
-impl Default for CodeTheme {
-    fn default() -> Self {
-        Self::dark()
-    }
-}
-
-impl CodeTheme {
-    pub fn from_memory(ctx: &egui::Context) -> Self {
-        if ctx.style().visuals.dark_mode {
-            ctx.memory()
-                .data
-                .get_persisted(egui::Id::new("dark"))
-                .unwrap_or_else(CodeTheme::dark)
-        } else {
-            ctx.memory()
-                .data
-                .get_persisted(egui::Id::new("light"))
-                .unwrap_or_else(CodeTheme::light)
-        }
-    }
-}
-
-impl CodeTheme {
-    pub fn dark() -> Self {
-        Self {
-            dark_mode: true,
-            syntect_theme: SyntectTheme::Base16MochaDark,
-        }
-    }
-
-    pub fn light() -> Self {
-        Self {
-            dark_mode: false,
-            syntect_theme: SyntectTheme::SolarizedLight,
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-struct Highligher {
+struct Highlighter {
     ps: syntect::parsing::SyntaxSet,
     ts: syntect::highlighting::ThemeSet,
 }
 
-impl Default for Highligher {
+impl Default for Highlighter {
     fn default() -> Self {
         Self {
             ps: syntect::parsing::SyntaxSet::load_defaults_newlines(),
@@ -120,25 +57,21 @@ impl Default for Highligher {
     }
 }
 
-impl Highligher {
+impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn highlight(&self, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
-        self.highlight_impl(theme, code, lang).unwrap_or_else(|| {
+    fn highlight(&self, code: &str, lang: &str) -> LayoutJob {
+        self.highlight_impl(code, lang).unwrap_or_else(|| {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
                 FontId::new(14.0, FontFamily::Monospace),
-                if theme.dark_mode {
-                    egui::Color32::LIGHT_GRAY
-                } else {
-                    egui::Color32::DARK_GRAY
-                },
+                egui::Color32::LIGHT_GRAY,
                 f32::INFINITY,
             )
         })
     }
 
-    fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
+    fn highlight_impl(&self, text: &str, language: &str) -> Option<LayoutJob> {
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;
         use syntect::util::LinesWithEndings;
@@ -148,7 +81,7 @@ impl Highligher {
             .find_syntax_by_name(language)
             .or_else(|| self.ps.find_syntax_by_extension(language))?;
 
-        let theme = theme.syntect_theme.syntect_key_name();
+        let theme = "base16-mocha.dark";
         let mut h = HighlightLines::new(syntax, &self.ts.themes[theme]);
 
         use egui::text::{LayoutSection, TextFormat};
@@ -159,7 +92,7 @@ impl Highligher {
         };
 
         for line in LinesWithEndings::from(text) {
-            for (style, range) in h.highlight(line, &self.ps) {
+            for (style, range) in h.highlight_line(line, &self.ps).ok()? {
                 let fg = style.foreground;
                 let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
                 let italics = style.font_style.contains(FontStyle::ITALIC);
@@ -167,7 +100,7 @@ impl Highligher {
                 let underline = if underline {
                     egui::Stroke::new(1.0, text_color)
                 } else {
-                    egui::Stroke::none()
+                    egui::Stroke::NONE
                 };
                 job.sections.push(LayoutSection {
                     leading_space: 0.0,

@@ -60,8 +60,11 @@ pub struct Application {
 impl Application {
     pub async fn new(window: &Window, event_loop: &EventLoop<()>) -> Result<Self> {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::PRIMARY,
+            ..Default::default()
+        });
+        let surface = unsafe { instance.create_surface(window) }?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -85,13 +88,16 @@ impl Application {
             )
             .await?;
 
-        let surface_format = surface.get_supported_formats(&adapter)[0];
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps.formats[0];
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
+            view_formats: vec![surface_format],
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: surface_caps.alpha_modes[0],
         };
         surface.configure(&device, &surface_config);
 
@@ -125,7 +131,7 @@ impl Application {
         let mut egui_wgpu = EguiWgpu::new(event_loop, &device, surface_format);
 
         let main_view = MainView::new(
-            &mut egui_wgpu.render_pass,
+            &mut egui_wgpu.renderer,
             &device,
             vertices_buffer.as_entire_binding(),
             faces_buffer.as_entire_binding(),
@@ -136,7 +142,7 @@ impl Application {
             discrete_gpu,
         );
         let reference_view = ReferenceView::new(
-            &mut egui_wgpu.render_pass,
+            &mut egui_wgpu.renderer,
             &device,
             vertices_buffer.as_entire_binding(),
             faces_buffer.as_entire_binding(),
@@ -221,7 +227,7 @@ impl Application {
 
     fn show(&mut self) {
         let ctx = &self.egui_wgpu.egui_ctx;
-        let rpass = &mut self.egui_wgpu.render_pass;
+        let rpass = &mut self.egui_wgpu.renderer;
         let Self {
             main_view,
             reference_view,
