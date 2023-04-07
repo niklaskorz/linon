@@ -29,7 +29,7 @@ env_logger = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui-winit = { version = "0.20", default-features = false, features = ["links"] }
-wasm-bindgen = "0.2.83"
+wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.33"
 web-sys = "0.3.60"
 console_error_panic_hook = "0.1.7"
@@ -41,3 +41,4 @@ console_log = "0.2.0"
 egui = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
 egui-winit = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
 egui-wgpu = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
+wgpu = { git = "https://github.com/gents83/wgpu.git", rev = "548cb517854bdfc2a13084a27f1547f6d1734361" }
