@@ -38,7 +38,7 @@ console_log = "0.2.0"
 [features]
 
 [patch.crates-io]
-wgpu = { git = "https://github.com/niklaskorz/wgpu-arcanization.git", rev = "d1969b8579eb192a0a7fc14a9b8b1f147fd2232c" }
+wgpu = { git = "https://github.com/niklaskorz/wgpu-arcanization.git", rev = "56f262f6bcd72cc18aea89927a24ae44555274ff" }
 egui = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
 egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
 egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }

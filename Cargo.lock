@@ -2558,7 +2558,7 @@ checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
 [[package]]
 name = "wgpu"
 version = "0.15.0"
-source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=d1969b8579eb192a0a7fc14a9b8b1f147fd2232c#d1969b8579eb192a0a7fc14a9b8b1f147fd2232c"
+source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=56f262f6bcd72cc18aea89927a24ae44555274ff#56f262f6bcd72cc18aea89927a24ae44555274ff"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -2581,7 +2581,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.15.0"
-source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=d1969b8579eb192a0a7fc14a9b8b1f147fd2232c#d1969b8579eb192a0a7fc14a9b8b1f147fd2232c"
+source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=56f262f6bcd72cc18aea89927a24ae44555274ff#56f262f6bcd72cc18aea89927a24ae44555274ff"
 dependencies = [
  "arrayvec",
  "bit-vec",
@@ -2603,7 +2603,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.15.1"
-source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=d1969b8579eb192a0a7fc14a9b8b1f147fd2232c#d1969b8579eb192a0a7fc14a9b8b1f147fd2232c"
+source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=56f262f6bcd72cc18aea89927a24ae44555274ff#56f262f6bcd72cc18aea89927a24ae44555274ff"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -2644,7 +2644,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.15.0"
-source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=d1969b8579eb192a0a7fc14a9b8b1f147fd2232c#d1969b8579eb192a0a7fc14a9b8b1f147fd2232c"
+source = "git+https://github.com/niklaskorz/wgpu-arcanization.git?rev=56f262f6bcd72cc18aea89927a24ae44555274ff#56f262f6bcd72cc18aea89927a24ae44555274ff"
 dependencies = [
  "bitflags",
  "js-sys",
