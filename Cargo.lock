@@ -2711,7 +2711,7 @@ checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
 [[package]]
 name = "wgpu"
 version = "0.15.0"
-source = "git+https://github.com/gents83/wgpu.git?rev=548cb517854bdfc2a13084a27f1547f6d1734361#548cb517854bdfc2a13084a27f1547f6d1734361"
+source = "git+https://github.com/gents83/wgpu.git?rev=aa4424ed889b9759dd88be7ffff4caa217fbc22d#aa4424ed889b9759dd88be7ffff4caa217fbc22d"
 dependencies = [
  "arrayvec 0.7.2",
  "cfg-if",
@@ -2734,7 +2734,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.15.0"
-source = "git+https://github.com/gents83/wgpu.git?rev=548cb517854bdfc2a13084a27f1547f6d1734361#548cb517854bdfc2a13084a27f1547f6d1734361"
+source = "git+https://github.com/gents83/wgpu.git?rev=aa4424ed889b9759dd88be7ffff4caa217fbc22d#aa4424ed889b9759dd88be7ffff4caa217fbc22d"
 dependencies = [
  "arrayvec 0.7.2",
  "bit-vec",
@@ -2756,7 +2756,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.15.1"
-source = "git+https://github.com/gents83/wgpu.git?rev=548cb517854bdfc2a13084a27f1547f6d1734361#548cb517854bdfc2a13084a27f1547f6d1734361"
+source = "git+https://github.com/gents83/wgpu.git?rev=aa4424ed889b9759dd88be7ffff4caa217fbc22d#aa4424ed889b9759dd88be7ffff4caa217fbc22d"
 dependencies = [
  "android_system_properties",
  "arrayvec 0.7.2",
@@ -2797,7 +2797,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.15.0"
-source = "git+https://github.com/gents83/wgpu.git?rev=548cb517854bdfc2a13084a27f1547f6d1734361#548cb517854bdfc2a13084a27f1547f6d1734361"
+source = "git+https://github.com/gents83/wgpu.git?rev=aa4424ed889b9759dd88be7ffff4caa217fbc22d#aa4424ed889b9759dd88be7ffff4caa217fbc22d"
 dependencies = [
  "bitflags",
  "js-sys",

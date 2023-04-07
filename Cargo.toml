@@ -41,4 +41,5 @@ console_log = "0.2.0"
 egui = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
 egui-winit = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
 egui-wgpu = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
-wgpu = { git = "https://github.com/gents83/wgpu.git", rev = "548cb517854bdfc2a13084a27f1547f6d1734361" }
+wgpu = { git = "https://github.com/gents83/wgpu.git", rev = "aa4424ed889b9759dd88be7ffff4caa217fbc22d" }
+
