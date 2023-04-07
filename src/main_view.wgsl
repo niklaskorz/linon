@@ -339,13 +339,13 @@ const sample_outline_rays: bool = false;
 @compute @workgroup_size(8, 8)
 fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
     let size = textureDimensions(ttarget);
-    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
-    if (coords.x >= size.x || coords.y < 0) {
+    let coords = vec2<i32>(i32(gid.x), i32(size.y) - i32(gid.y) - 1);
+    if (coords.x >= i32(size.x) || coords.y < 0) {
         return;
     }
 
-    let width = f32(size.x);
-    let height = f32(size.y);
+    let width = f32(i32(size.x));
+    let height = f32(i32(size.y));
     let aspect_ratio = width / height;
 
     // Camera properties
@@ -384,19 +384,19 @@ fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
             var sum: i32 = 0;
             if (gid.x == 0u) {
                 // Bottom left
-                for (var x: i32 = 0; x < size.x; x = x + 1) {
-                    for (var y: i32 = 0; y < size.y; y = y + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp && (size.x - x) + y >= sum) {
+                for (var x: i32 = 0; x < i32(size.x); x = x + 1) {
+                    for (var y: i32 = 0; y < i32(size.y); y = y + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp && (i32(size.x) - x) + y >= sum) {
                             pos = vec2<f32>(f32(x), f32(y));
-                            sum = (size.x - x) + y;
+                            sum = (i32(size.x) - x) + y;
                         }
                     }
                 }
             } else if (gid.x == 1u) {
                 // Bottom middle
-                for (var y: i32 = size.x - 1; y >= 0 && !found; y = y - 1) {
-                    for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp) {
+                for (var y: i32 = i32(size.x) - 1; y >= 0 && !found; y = y - 1) {
+                    for (var x: i32 = 0; x < i32(size.x) && !found; x = x + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp) {
                             pos = vec2<f32>(f32(x), f32(y));
                             found = true;
                         }
@@ -404,9 +404,9 @@ fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
                 }
             } else if (gid.x == 2u) {
                 // Bottom right
-                for (var x: i32 = 0; x < size.x; x = x + 1) {
-                    for (var y: i32 = 0; y < size.y; y = y + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp && x + y >= sum) {
+                for (var x: i32 = 0; x < i32(size.x); x = x + 1) {
+                    for (var y: i32 = 0; y < i32(size.y); y = y + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp && x + y >= sum) {
                             pos = vec2<f32>(f32(x), f32(y));
                             sum = x + y;
                         }
@@ -414,9 +414,9 @@ fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
                 }
             } else if (gid.x == 3u) {
                 // Middle right
-                for (var x: i32 = size.x - 1; x >= 0 && !found; x = x - 1) {
-                    for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp) {
+                for (var x: i32 = i32(size.x) - 1; x >= 0 && !found; x = x - 1) {
+                    for (var y: i32 = 0; y < i32(size.y) && !found; y = y + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp) {
                             pos = vec2<f32>(f32(x), f32(y));
                             found = true;
                         }
@@ -424,19 +424,19 @@ fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
                 }
             } else if (gid.x == 4u) {
                 // Top right
-                for (var x: i32 = 0; x < size.x; x = x + 1) {
-                    for (var y: i32 = 0; y < size.y; y = y + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp && x + (size.y - y) >= sum) {
+                for (var x: i32 = 0; x < i32(size.x); x = x + 1) {
+                    for (var y: i32 = 0; y < i32(size.y); y = y + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp && x + (i32(size.y) - y) >= sum) {
                             pos = vec2<f32>(f32(x), f32(y));
-                            sum = x + (size.y - y);
+                            sum = x + (i32(size.y) - y);
                         }
                     }
                 }
             } else if (gid.x == 5u) {
                 // Top middle
-                for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
-                    for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp) {
+                for (var y: i32 = 0; y < i32(size.y) && !found; y = y + 1) {
+                    for (var x: i32 = 0; x < i32(size.x) && !found; x = x + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp) {
                             pos = vec2<f32>(f32(x), f32(y));
                             found = true;
                         }
@@ -444,19 +444,19 @@ fn main_view(@builtin(global_invocation_id) gid: vec3<u32>) {
                 }
             } else if (gid.x == 6u) {
                 // Top left
-                for (var x: i32 = 0; x < size.x; x = x + 1) {
-                    for (var y: i32 = 0; y < size.y; y = y + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp && (size.x - x) + (size.y - y) >= sum) {
+                for (var x: i32 = 0; x < i32(size.x); x = x + 1) {
+                    for (var y: i32 = 0; y < i32(size.y); y = y + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp && (i32(size.x) - x) + (i32(size.y) - y) >= sum) {
                             pos = vec2<f32>(f32(x), f32(y));
-                            sum = (size.x - x) + (size.y - y);
+                            sum = (i32(size.x) - x) + (i32(size.y) - y);
                         }
                     }
                 }
             } else if (gid.x == 7u) {
                 // Middle left
-                for (var x: i32 = 0; x < size.x && !found; x = x + 1) {
-                    for (var y: i32 = 0; y < size.y && !found; y = y + 1) {
-                        if (exponents.data[y * size.y + x] >= min_exp) {
+                for (var x: i32 = 0; x < i32(size.x) && !found; x = x + 1) {
+                    for (var y: i32 = 0; y < i32(size.y) && !found; y = y + 1) {
+                        if (exponents.data[y * i32(size.y) + x] >= min_exp) {
                             pos = vec2<f32>(f32(x), f32(y));
                             found = true;
                         }

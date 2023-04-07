@@ -9,26 +9,26 @@ resolver = "2"
 
 [dependencies]
 image = "0.24"
-winit = "0.27"
+winit = "0.28"
 cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.20"
-egui-wgpu = "0.20"
+egui = "0.21"
+egui-wgpu = "0.21"
 wgpu = "0.15"
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
 enum-map = "2.4.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = "0.20"
+egui-winit = "0.21"
 notify = "5.0.0"
 env_logger = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui-winit = { version = "0.20", default-features = false, features = ["links"] }
+egui-winit = { version = "0.21", default-features = false, features = ["links"] }
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.33"
 web-sys = "0.3.60"
@@ -38,8 +38,12 @@ console_log = "0.2.0"
 [features]
 
 [patch.crates-io]
-egui = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
-egui-winit = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
-egui-wgpu = { git = "https://github.com/coderedart/egui.git", rev = "0efba8fc829a6d6abb63ad9d2d91081a1e4fd7e8" }
-wgpu = { git = "https://github.com/gents83/wgpu.git", rev = "aa4424ed889b9759dd88be7ffff4caa217fbc22d" }
+wgpu = { git = "https://github.com/niklaskorz/wgpu-arcanization.git", rev = "d1969b8579eb192a0a7fc14a9b8b1f147fd2232c" }
+egui = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
+egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
+egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
+#wgpu = { path = "../wgpu/wgpu" }
+#egui = { path = "../egui/crates/egui" }
+#egui-wgpu = { path = "../egui/crates/egui-wgpu" }
+#egui-winit = { path = "../egui/crates/egui-winit" }
 

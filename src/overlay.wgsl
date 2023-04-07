@@ -111,21 +111,21 @@ fn lyapunov_exponent(coords: vec2<i32>) -> f32 {
     return exponent;
 }
 
-fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
+fn overlay(coords: vec2<i32>, size: vec2<u32>) -> vec4<f32> {
     let color = textureLoad(ray_casting, coords, 0);
     if (settings.overlay_mode == 0) {
         return color;
     }
     let delta = settings.central_difference_delta;
     let padding = delta * 2;
-    if (coords.x < padding || coords.y < padding || coords.x >= size.x - padding || coords.y >= size.y - padding) {
+    if (coords.x < padding || coords.y < padding || coords.x >= i32(size.x) - padding || coords.y >= i32(size.y) - padding) {
         return color;
     }
 
     if (settings.overlay_mode == 1) {
         let exponent = lyapunov_exponent(coords);
         let scaled_exponent = exp(settings.lyapunov_scaling * exponent - 5.0);
-        exponents.data[size.y * coords.y + coords.x] = scaled_exponent;
+        exponents.data[i32(size.y) * coords.y + coords.x] = scaled_exponent;
         if (scaled_exponent >= 0.8) {
             let alpha = min(1.0, scaled_exponent) * 0.5;
             return alpha * vec4<f32>(1.0, 1.0, 1.0, 1.0) + (1.0 - alpha) * color;
@@ -137,8 +137,8 @@ fn overlay(coords: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
 @compute @workgroup_size(8, 8)
 fn overlay_desktop(@builtin(global_invocation_id) gid: vec3<u32>) {
     let size = textureDimensions(ttarget);
-    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
-    if (coords.x >= size.x || coords.y < 0) {
+    let coords = vec2<i32>(i32(gid.x), i32(size.y) - i32(gid.y) - 1);
+    if (coords.x >= i32(size.x) || coords.y < 0) {
         return;
     }
     let color = overlay(coords, size);
@@ -156,8 +156,8 @@ fn srgb_from_linear(linear_rgb: vec3<f32>) -> vec3<f32> {
 @compute @workgroup_size(8, 8)
 fn overlay_web(@builtin(global_invocation_id) gid: vec3<u32>) {
     let size = textureDimensions(ttarget);
-    let coords = vec2<i32>(i32(gid.x), size.y - i32(gid.y) - 1);
-    if (coords.x >= size.x || coords.y < 0) {
+    let coords = vec2<i32>(i32(gid.x), i32(size.y) - i32(gid.y) - 1);
+    if (coords.x >= i32(size.x) || coords.y < 0) {
         return;
     }
     let color = overlay(coords, size);
