@@ -55,7 +55,8 @@ pub struct DepthTexture {
 impl DepthTexture {
     pub fn new(device: &wgpu::Device, dimensions: (u32, u32), label: Option<&str>) -> Self {
         let (width, height) = dimensions;
-        let format = wgpu::TextureFormat::Depth32Float;
+        // This should be Depth32Float but somehow Chrome requires the stencil part
+        let format = wgpu::TextureFormat::Depth24PlusStencil8;
         let size = wgpu::Extent3d {
             width,
             height,

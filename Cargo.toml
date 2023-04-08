@@ -30,15 +30,15 @@ env_logger = "0.10"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui-winit = { version = "0.21", default-features = false, features = ["links"] }
 wasm-bindgen = "0.2.84"
-wasm-bindgen-futures = "0.4.33"
-web-sys = "0.3.60"
+wasm-bindgen-futures = "0.4.34"
+web-sys = "0.3.61"
+console_log = "1.0.0"
 console_error_panic_hook = "0.1.7"
-console_log = "0.2.0"
 
 [features]
 
 [patch.crates-io]
-wgpu = { git = "https://github.com/niklaskorz/wgpu-arcanization.git", rev = "56f262f6bcd72cc18aea89927a24ae44555274ff" }
+wgpu = { git = "https://github.com/grovesNL/wgpu.git", rev = "42b119927d718c1c7c9671949768e3b106709571" }
 egui = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
 egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
 egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
