@@ -38,7 +38,7 @@ console_error_panic_hook = "0.1.7"
 [features]
 
 [patch.crates-io]
-wgpu = { git = "https://github.com/grovesNL/wgpu.git", rev = "42b119927d718c1c7c9671949768e3b106709571" }
+wgpu = { git = "https://github.com/niklaskorz/wgpu.git", rev = "514218da6de8d938263f4f7501d6f0b35ad230ec" }
 egui = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
 egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
 egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
