@@ -18,7 +18,7 @@ anyhow = "1.0"
 tobj = "3.0"
 egui = "0.21"
 egui-wgpu = "0.21"
-wgpu = "0.15"
+wgpu = "0.16"
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
 enum-map = "2.4.2"
 
@@ -38,12 +38,7 @@ console_error_panic_hook = "0.1.7"
 [features]
 
 [patch.crates-io]
-wgpu = { git = "https://github.com/niklaskorz/wgpu.git", rev = "514218da6de8d938263f4f7501d6f0b35ad230ec" }
-egui = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
-egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
-egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "7794c3989d1561b854b345479bb2745de85d7e19" }
-#wgpu = { path = "../wgpu/wgpu" }
-#egui = { path = "../egui/crates/egui" }
-#egui-wgpu = { path = "../egui/crates/egui-wgpu" }
-#egui-winit = { path = "../egui/crates/egui-winit" }
+egui = { git = "https://github.com/niklaskorz/egui.git", rev = "732c8b1850c94ae5de76c45398b1929147670d44" }
+egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "732c8b1850c94ae5de76c45398b1929147670d44" }
+egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "732c8b1850c94ae5de76c45398b1929147670d44" }
 
