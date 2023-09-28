@@ -4,9 +4,10 @@ use crate::{
     texture::Texture,
 };
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
+use egui::ImageSource;
+use egui_wgpu::renderer as egui_wgpu_backend;
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
-use egui_wgpu::renderer as egui_wgpu_backend;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -110,11 +111,8 @@ impl MainView {
             wgpu::TextureFormat::Rgba8Unorm,
             true,
         );
-        let texture_id = rpass.register_native_texture(
-            device,
-            &texture.view,
-            wgpu::FilterMode::Nearest,
-        );
+        let texture_id =
+            rpass.register_native_texture(device, &texture.view, wgpu::FilterMode::Nearest);
 
         let ray_casting_texture = Texture::new(
             device,
@@ -564,11 +562,8 @@ impl MainView {
             wgpu::TextureFormat::Rgba8Unorm,
             true,
         );
-        self.texture_id = rpass.register_native_texture(
-            device,
-            &self.texture.view,
-            wgpu::FilterMode::Nearest,
-        );
+        self.texture_id =
+            rpass.register_native_texture(device, &self.texture.view, wgpu::FilterMode::Nearest);
         self.ray_casting_texture = Texture::new(
             device,
             (width, height),
@@ -704,7 +699,7 @@ impl MainView {
         {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
-        let resp = ui.image(self.texture_id, size);
+        let resp = ui.image(ImageSource::Texture((self.texture_id, size).into()));
         let input = ui.input(|i| i.clone());
         if input.pointer.any_released() && !input.pointer.any_down() {
             self.enable_adaptive_sampling(device);

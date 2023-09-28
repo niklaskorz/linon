@@ -1,6 +1,7 @@
 use cgmath::{Vector2, Vector3};
-use wgpu::util::DeviceExt;
+use egui::{load::SizedTexture, ImageSource};
 use egui_wgpu::renderer as egui_wgpu_backend;
+use wgpu::util::DeviceExt;
 
 use crate::{
     application::INITIAL_SIDEBAR_WIDTH,
@@ -60,19 +61,16 @@ impl ReferenceView {
         let dimensions = (INITIAL_SIDEBAR_WIDTH as u32, INITIAL_SIDEBAR_WIDTH as u32);
 
         let texture = Texture::new(
-            &device,
+            device,
             dimensions,
             Some("reference_texture"),
             wgpu::TextureFormat::Rgba8UnormSrgb,
             false,
         );
-        let texture_id = rpass.register_native_texture(
-            device,
-            &texture.view,
-            wgpu::FilterMode::Linear,
-        );
+        let texture_id =
+            rpass.register_native_texture(device, &texture.view, wgpu::FilterMode::Linear);
 
-        let depth_texture = DepthTexture::new(&device, dimensions, Some("depth_texture"));
+        let depth_texture = DepthTexture::new(device, dimensions, Some("depth_texture"));
 
         let mut camera =
             ArcballCamera::new(center, 1.0, [INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH]);
@@ -288,17 +286,13 @@ impl ReferenceView {
         let prev = self.prev_pointer_pos.unwrap();
         match camera_op {
             CameraOperation::Rotate => {
-                self.camera.rotate(
-                    Vector2::new(prev.0 as f32, prev.1 as f32),
-                    Vector2::new(pos.0 as f32, pos.1 as f32),
-                );
+                self.camera
+                    .rotate(Vector2::new(prev.0, prev.1), Vector2::new(pos.0, pos.1));
                 self.update_camera(queue);
             }
             CameraOperation::Pan => {
-                self.camera.pan(Vector2::new(
-                    (pos.0 - prev.0) as f32,
-                    (pos.1 - prev.1) as f32,
-                ));
+                self.camera
+                    .pan(Vector2::new(pos.0 - prev.0, pos.1 - prev.1));
                 self.update_camera(queue);
             }
             CameraOperation::None => {}
@@ -307,10 +301,10 @@ impl ReferenceView {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, _device: &wgpu::Device, queue: &wgpu::Queue) {
-        let resp = ui.image(
+        let resp = ui.image(ImageSource::Texture(SizedTexture::new(
             self.texture_id,
             (INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH),
-        );
+        )));
         let input = ui.input(|i| i.clone());
         if let Some(pos) = resp.hover_pos() {
             if input.key_pressed(egui::Key::Space) {

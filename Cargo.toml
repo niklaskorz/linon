@@ -16,29 +16,25 @@ futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.21"
-egui-wgpu = "0.21"
-wgpu = "0.16"
+egui = "0.23"
+egui-wgpu = "0.23"
+wgpu = { version = "0.17", features = ["fragile-send-sync-non-atomic-wasm"] }
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
-enum-map = "2.4.2"
+enum-map = "2.6"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = "0.21"
-notify = "5.0.0"
+egui-winit = "0.23"
+notify = "5.0"
 env_logger = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui-winit = { version = "0.21", default-features = false, features = ["links"] }
-wasm-bindgen = "0.2.84"
-wasm-bindgen-futures = "0.4.34"
-web-sys = "0.3.61"
-console_log = "1.0.0"
-console_error_panic_hook = "0.1.7"
+egui-winit = { version = "0.23", default-features = false, features = ["links"] }
+wasm-bindgen = "0.2.87"
+wasm-bindgen-futures = "0.4"
+web-sys = "0.3"
+console_log = "1.0"
+console_error_panic_hook = "0.1"
+getrandom = { version = "0.2", features = ["js"] }
 
 [features]
-
-[patch.crates-io]
-egui = { git = "https://github.com/niklaskorz/egui.git", rev = "732c8b1850c94ae5de76c45398b1929147670d44" }
-egui-wgpu = { git = "https://github.com/niklaskorz/egui.git", rev = "732c8b1850c94ae5de76c45398b1929147670d44" }
-egui-winit = { git = "https://github.com/niklaskorz/egui.git", rev = "732c8b1850c94ae5de76c45398b1929147670d44" }
 
