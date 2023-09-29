@@ -7,8 +7,8 @@ At its core is the continuous evaluation of ray paths in a nonlinear field throu
 A presentation in Powerpoint and PDF formats can be found in the `presentation/` directory, as well as a report as LaTeX and PDF in the `report/` directory.
 
 Prebuilt binaries for Windows, macOS and Linux can be found in the [releases](https://github.com/niklaskorz/linon/releases) of the Github repository.
-If you are running a nightly version of Firefox or Chrome and have the WebGPU flag enabled, you can also run [linon on the web](https://niklaskorz.github.io/linon/).
-See https://web.dev/gpu/#enabling-via-about:flags for information on how to enable WebGPU in Chrome Canary.
+If you are using Chrome or Firefox, you can also run [linon on the web](https://niklaskorz.github.io/linon/).
+For Firefox, you first have to enable the `dom.webgpu.enabled` and `gfx.webgpu.ignore-blocklist` flags in <about:config>.
 
 ## Usage
 
@@ -47,7 +47,7 @@ Additional helper functions can be defined by adding them to the computer shader
 
 ## Build instructions
 
-Compilation requires at least [Rust](https://www.rust-lang.org/) version 1.54 to be installed.
+Compilation requires at least [Rust](https://www.rust-lang.org/) version 1.70 to be installed.
 The preferred way of installing Rust is through [rustup](https://rustup.rs/).
 Furthermore, an up to date graphics driver with support for Vulkan or DirectX 12 is assumed.
 If you are on macOS, Apple's Metal graphics API will be used automatically by WebGPU.
@@ -69,8 +69,8 @@ To build the web version of linon, execute the following commands:
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo install -f wasm-bindgen-cli --version 0.2.77
-RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --no-default-features --target wasm32-unknown-unknown --release
+cargo install -f wasm-bindgen-cli --version 0.2.87
+RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --target wasm32-unknown-unknown --release
 wasm-bindgen --out-dir public --web target/wasm32-unknown-unknown/release/linon.wasm
 ```
 
