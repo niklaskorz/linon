@@ -8,7 +8,7 @@ A presentation in Powerpoint and PDF formats can be found in the `presentation/`
 
 Prebuilt binaries for Windows, macOS and Linux can be found in the [releases](https://github.com/niklaskorz/linon/releases) of the Github repository.
 If you are using Chrome or Firefox, you can also run [linon on the web](https://niklaskorz.github.io/linon/).
-For Firefox, you first have to enable the `dom.webgpu.enabled` and `gfx.webgpu.ignore-blocklist` flags in <about:config>.
+For Firefox, you first have to enable the `dom.webgpu.enabled` and `gfx.webgpu.ignore-blocklist` flags in [about:config](about:config).
 
 ## Usage
 
