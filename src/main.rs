@@ -14,16 +14,17 @@ use anyhow::Result;
 use application::Application;
 #[cfg(not(target_arch = "wasm32"))]
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::ffi::OsStr;
 use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc::{channel, Sender};
-use std::ffi::OsStr;
 use winit::dpi::LogicalSize;
-use winit::event::ElementState;
+use winit::event::{ElementState, KeyEvent};
 use winit::window::Fullscreen;
 use winit::{
-    event::{Event, VirtualKeyCode, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event::{Event, WindowEvent},
+    event_loop::EventLoop,
+    keyboard::Key,
     window::{Window, WindowBuilder},
 };
 
@@ -37,7 +38,8 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
 }
 
 async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
-    let mut app = Application::new(&window, &event_loop)
+    let app_window = window.clone();
+    let mut app = Application::new(&app_window)
         .await
         .expect("creation of application failed");
 
@@ -56,100 +58,116 @@ async fn run(event_loop: EventLoop<()>, window: Rc<Window>) {
         }
     };
 
-    event_loop.run(move |event, _, control_flow| {
-        if let Event::WindowEvent { ref event, .. } = event {
-            if app.handle_event(&event) {
-                return;
+    event_loop
+        .run(move |event, window_target| {
+            if let Event::WindowEvent { ref event, .. } = event {
+                if app.handle_event(&window, &event) {
+                    return;
+                }
             }
-        }
 
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::DroppedFile(path),
-                ..
-            } => {
-                println!("File dropped: {:?}", path);
-                if path.extension().and_then(OsStr::to_str) == Some("obj") {
-                    println!("Loading object...");
-                    let (models, _) = tobj::load_obj(
-                        &path,
-                        &tobj::LoadOptions {
-                            triangulate: true,
-                            ..Default::default()
+            match event {
+                Event::WindowEvent {
+                    event: WindowEvent::DroppedFile(path),
+                    ..
+                } => {
+                    println!("File dropped: {:?}", path);
+                    if path.extension().and_then(OsStr::to_str) == Some("obj") {
+                        println!("Loading object...");
+                        let (models, _) = tobj::load_obj(
+                            &path,
+                            &tobj::LoadOptions {
+                                triangulate: true,
+                                ..Default::default()
+                            },
+                        )
+                        .expect("failed to load obj file");
+                        println!("Number of models: {}", models.len());
+                        println!("Loading first model...");
+                        let mesh = &models[0].mesh;
+                        app.load_model(&mut mesh.positions.clone(), &mesh.indices);
+                        println!("Finished loading");
+                    }
+                }
+                Event::WindowEvent {
+                    event: WindowEvent::Resized(size),
+                    ..
+                } => app.resize(size.width, size.height),
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    ..
+                } => {
+                    window_target.exit();
+                }
+                Event::WindowEvent {
+                    event:
+                        WindowEvent::KeyboardInput {
+                            event:
+                                KeyEvent {
+                                    state: ElementState::Pressed,
+                                    logical_key: Key::Character(chr),
+                                    ..
+                                },
+                            ..
                         },
-                    )
-                    .expect("failed to load obj file");
-                    println!("Number of models: {}", models.len());
-                    println!("Loading first model...");
-                    let mesh = &models[0].mesh;
-                    app.load_model(&mut mesh.positions.clone(), &mesh.indices);
-                    println!("Finished loading");
+                    ..
+                } => match chr.as_str() {
+                    "r" => {
+                        app.load_default_model();
+                    }
+                    "f" => {
+                        window.set_fullscreen(if window.fullscreen().is_some() {
+                            None
+                        } else {
+                            Some(Fullscreen::Borderless(None))
+                        });
+                    }
+                    _ => {}
+                },
+                Event::WindowEvent {
+                    event: WindowEvent::RedrawRequested,
+                    ..
+                } => {
+                    if let Err(e) = app.render(&window) {
+                        if e == wgpu::SurfaceError::Outdated {
+                            let size = window.inner_size();
+                            app.resize(size.width, size.height);
+                        } else {
+                            panic!("{}", e);
+                        }
+                    }
                 }
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => app.resize(size.width, size.height),
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event: WindowEvent::KeyboardInput { input, .. },
-                ..
-            } => match input.virtual_keycode {
-                Some(VirtualKeyCode::R) if input.state == ElementState::Pressed => {
-                    app.load_default_model();
-                }
-                Some(VirtualKeyCode::F) if input.state == ElementState::Pressed => {
-                    window.set_fullscreen(if window.fullscreen().is_some() {
-                        None
-                    } else {
-                        Some(Fullscreen::Borderless(None))
-                    });
+                Event::AboutToWait => {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        let mut reload_compute_shader = false;
+                        for result in rx.try_iter() {
+                            if let Ok(_event) = result {
+                                reload_compute_shader = true;
+                            }
+                        }
+                        if reload_compute_shader {
+                            println!("Compute shader has changed");
+                            let source = std::fs::read_to_string("src/main_view.wgsl")
+                                .expect("reading compute shader failed");
+                            if let Err(e) = app.reload_compute_shader(&source) {
+                                println!("Shader reload failed: {:?}", e);
+                            }
+                        }
+                    }
+                    window.request_redraw()
                 }
                 _ => {}
-            },
-            Event::RedrawRequested(_) => {
-                if let Err(e) = app.render(&window) {
-                    if e == wgpu::SurfaceError::Outdated {
-                        let size = window.inner_size();
-                        app.resize(size.width, size.height);
-                    } else {
-                        panic!("{}", e);
-                    }
-                }
             }
-            Event::MainEventsCleared => {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let mut reload_compute_shader = false;
-                    for result in rx.try_iter() {
-                        if let Ok(_event) = result {
-                            reload_compute_shader = true;
-                        }
-                    }
-                    if reload_compute_shader {
-                        println!("Compute shader has changed");
-                        let source = std::fs::read_to_string("src/main_view.wgsl")
-                            .expect("reading compute shader failed");
-                        if let Err(e) = app.reload_compute_shader(&source) {
-                            println!("Shader reload failed: {:?}", e);
-                        }
-                    }
-                }
-                window.request_redraw()
-            }
-            _ => {}
-        }
-    });
+        })
+        .unwrap();
 }
 
 fn main() -> Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     env_logger::init();
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new()?;
     let window = WindowBuilder::new()
         .with_title("linon")
         .with_inner_size(LogicalSize {

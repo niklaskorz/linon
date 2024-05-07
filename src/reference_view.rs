@@ -1,6 +1,6 @@
 use cgmath::{Vector2, Vector3};
 use egui::{load::SizedTexture, ImageSource};
-use egui_wgpu::renderer as egui_wgpu_backend;
+use egui_wgpu as egui_wgpu_backend;
 use wgpu::util::DeviceExt;
 
 use crate::{
@@ -167,6 +167,7 @@ impl ReferenceView {
                 module: &shader,
                 entry_point: "main_vertex",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -182,6 +183,7 @@ impl ReferenceView {
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -324,7 +326,7 @@ impl ReferenceView {
                     (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
                 );
             }
-            let scroll_delta = ui.input(|i| i.scroll_delta);
+            let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
             if scroll_delta.y != 0.0 {
                 self.on_zoom(queue, scroll_delta.y);
             }
@@ -349,17 +351,19 @@ impl ReferenceView {
                         b: 0.0,
                         a: 1.0,
                     }),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
 
         rpass.set_pipeline(&self.render_pipeline);
@@ -392,6 +396,7 @@ fn create_sample_render_pipeline(
             module: shader,
             entry_point: "sample_vertex",
             buffers: &[vertex_desc()],
+            compilation_options: Default::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: shader,
@@ -415,6 +420,7 @@ fn create_sample_render_pipeline(
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
+            compilation_options: Default::default(),
         }),
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,

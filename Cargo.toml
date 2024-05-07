@@ -9,26 +9,26 @@ resolver = "2"
 
 [dependencies]
 image = "0.24"
-winit = "0.28"
+winit = "0.29"
 cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
 bytemuck = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
 tobj = "3.0"
-egui = "0.23"
-egui-wgpu = "0.23"
-wgpu = { version = "0.17", features = ["fragile-send-sync-non-atomic-wasm"] }
+egui = "0.27"
+egui-wgpu = "0.27"
+wgpu = { version = "0.20", features = ["fragile-send-sync-non-atomic-wasm"] }
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
 enum-map = "2.6"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = "0.23"
+egui-winit = "0.27"
 notify = "5.0"
 env_logger = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui-winit = { version = "0.23", default-features = false, features = ["links"] }
+egui-winit = { version = "0.27", default-features = false, features = ["links"] }
 wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"
@@ -38,3 +38,8 @@ getrandom = { version = "0.2", features = ["js"] }
 
 [features]
 
+[patch.crates-io]
+egui = { git = "https://github.com/emilk/egui.git", rev = "ded8dbd45bc8616475c364878f6b8e2f7293d12c" }
+egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "ded8dbd45bc8616475c364878f6b8e2f7293d12c" }
+egui-winit = { git = "https://github.com/emilk/egui.git", rev = "ded8dbd45bc8616475c364878f6b8e2f7293d12c" }
+#ac-ffmpeg = { path = "../../rust-ac-ffmpeg" }

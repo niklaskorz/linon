@@ -5,7 +5,7 @@ use crate::{
 };
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
 use egui::ImageSource;
-use egui_wgpu::renderer as egui_wgpu_backend;
+use egui_wgpu as egui_wgpu_backend;
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
 
@@ -318,6 +318,7 @@ impl MainView {
             layout: Some(&compute_pipeline_layout),
             module: &shader,
             entry_point: "main_view",
+            compilation_options: Default::default(),
         });
 
         let overlay_shader_src = include_str!("overlay.wgsl");
@@ -421,6 +422,7 @@ impl MainView {
             entry_point: "overlay_desktop",
             #[cfg(target_arch = "wasm32")]
             entry_point: "overlay_web",
+            compilation_options: Default::default(),
         });
 
         Self {
@@ -664,6 +666,7 @@ impl MainView {
             layout: Some(&self.compute_pipeline_layout),
             module: &compute_shader,
             entry_point: "main_view",
+            compilation_options: Default::default(),
         });
 
         device.on_uncaptured_error(Box::new(|e| panic!("{}", e)));
@@ -730,7 +733,7 @@ impl MainView {
                     (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
                 );
             }
-            let scroll_delta = ui.input(|i| i.scroll_delta);
+            let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
             if scroll_delta.y != 0.0 {
                 self.on_zoom(queue, scroll_delta.y);
             }
@@ -820,6 +823,7 @@ impl MainView {
     pub fn render(&mut self, encoder: &mut wgpu::CommandEncoder) {
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("cpass"),
+            timestamp_writes: None,
         });
         let (width, height) = self.texture.dimensions;
 

@@ -1,25 +1,30 @@
-use std::time::Duration;
-
 use egui::FullOutput;
-use egui_wgpu::renderer as egui_wgpu_backend;
-use winit::event_loop::EventLoop;
+use egui_wgpu;
 
 pub struct EguiWgpu {
     pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
-    pub renderer: egui_wgpu_backend::Renderer,
+    pub renderer: egui_wgpu::Renderer,
 }
 
 impl EguiWgpu {
     pub fn new(
-        event_loop: &EventLoop<()>,
+        window: &winit::window::Window,
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
     ) -> Self {
+        let egui_ctx = egui::Context::default();
+        let viewport_id = egui_ctx.viewport_id();
         Self {
-            egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(event_loop),
-            renderer: egui_wgpu_backend::Renderer::new(device, output_format, None, 1),
+            egui_ctx: egui_ctx.clone(),
+            egui_winit: egui_winit::State::new(
+                egui_ctx,
+                viewport_id,
+                window,
+                Some(window.scale_factor() as f32),
+                None,
+            ),
+            renderer: egui_wgpu::Renderer::new(device, output_format, None, 1),
         }
     }
 
@@ -29,8 +34,12 @@ impl EguiWgpu {
     /// and only when this returns `false` pass on the events to your game.
     ///
     /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
-    pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) -> bool {
-        self.egui_winit.on_event(&self.egui_ctx, event).consumed
+    pub fn on_event(
+        &mut self,
+        window: &winit::window::Window,
+        event: &winit::event::WindowEvent,
+    ) -> bool {
+        self.egui_winit.on_window_event(window, event).consumed
     }
 
     pub fn begin_frame(&mut self, window: &winit::window::Window) {
@@ -39,15 +48,11 @@ impl EguiWgpu {
     }
 
     /// Returns `needs_repaint` and shapes to draw.
-    pub fn end_frame(&mut self, window: &winit::window::Window) -> (bool, FullOutput) {
+    pub fn end_frame(&mut self, window: &winit::window::Window) -> FullOutput {
         let output = self.egui_ctx.end_frame();
-        let needs_repaint = Duration::is_zero(&output.repaint_after);
-        self.egui_winit.handle_platform_output(
-            window,
-            &self.egui_ctx,
-            output.platform_output.clone(),
-        );
-        (needs_repaint, output)
+        self.egui_winit
+            .handle_platform_output(window, output.platform_output.clone());
+        output
     }
 
     pub fn paint(
@@ -58,13 +63,16 @@ impl EguiWgpu {
         color_attachment: &wgpu::TextureView,
         output: FullOutput,
     ) {
-        let clipped_meshes = self.egui_ctx.tessellate(output.shapes);
+        let clipped_meshes = self
+            .egui_ctx
+            .tessellate(output.shapes, output.pixels_per_point);
 
-        self.egui_ctx.set_pixels_per_point(window.scale_factor() as f32);
+        let pixels_per_point = window.scale_factor() as f32;
+        self.egui_ctx.set_pixels_per_point(pixels_per_point);
         let size = window.inner_size();
-        let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels: [size.width, size.height],
-            pixels_per_point: self.egui_ctx.pixels_per_point(),
+            pixels_per_point,
         };
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -90,11 +98,13 @@ impl EguiWgpu {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
                 label: Some("egui_render"),
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             self.renderer
                 .render(&mut render_pass, &clipped_meshes, &screen_descriptor);

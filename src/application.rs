@@ -9,7 +9,6 @@ use crate::syntax_highlighting::code_view_ui;
 use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
-use winit::event_loop::EventLoop;
 use winit::window::Window;
 
 pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
@@ -30,10 +29,10 @@ impl Display for OverlayMode {
     }
 }
 
-pub struct Application {
+pub struct Application<'a> {
     _instance: wgpu::Instance,
     surface_config: wgpu::SurfaceConfiguration,
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'a>,
     _adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -56,14 +55,14 @@ pub struct Application {
     field_function: String,
 }
 
-impl Application {
-    pub async fn new(window: &Window, event_loop: &EventLoop<()>) -> Result<Self> {
+impl<'a> Application<'a> {
+    pub async fn new(window: &'a Window) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
         });
-        let surface = unsafe { instance.create_surface(window) }?;
+        let surface = instance.create_surface(window)?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -80,8 +79,8 @@ impl Application {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::default(),
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::default(),
+                    required_limits: wgpu::Limits::default(),
                 },
                 None,
             )
@@ -97,6 +96,7 @@ impl Application {
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: surface_caps.alpha_modes[0],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &surface_config);
 
@@ -127,7 +127,7 @@ impl Application {
             mapped_at_creation: false,
         });
 
-        let mut egui_wgpu = EguiWgpu::new(event_loop, &device, surface_format);
+        let mut egui_wgpu = EguiWgpu::new(window, &device, surface_format);
 
         let main_view = MainView::new(
             &mut egui_wgpu.renderer,
@@ -175,8 +175,12 @@ impl Application {
         })
     }
 
-    pub fn handle_event(&mut self, winit_event: &winit::event::WindowEvent) -> bool {
-        self.egui_wgpu.on_event(winit_event)
+    pub fn handle_event(
+        &mut self,
+        window: &winit::window::Window,
+        winit_event: &winit::event::WindowEvent,
+    ) -> bool {
+        self.egui_wgpu.on_event(window, winit_event)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -491,7 +495,7 @@ impl Application {
 
         self.egui_wgpu.begin_frame(window);
         self.show();
-        let (_, shapes) = self.egui_wgpu.end_frame(window);
+        let output = self.egui_wgpu.end_frame(window);
 
         if self.main_view.needs_redraw || self.reference_view.needs_redraw {
             let mut encoder = self
@@ -515,7 +519,7 @@ impl Application {
         }
 
         self.egui_wgpu
-            .paint(window, &self.device, &self.queue, &view, shapes);
+            .paint(window, &self.device, &self.queue, &view, output);
         frame.present();
 
         Ok(())
