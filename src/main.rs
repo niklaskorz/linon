@@ -185,21 +185,22 @@ fn main() -> Result<()> {
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
         // On wasm, append the canvas to the document body
         let window = window.clone();
+        let canvas = window.canvas().expect("couldn't retrieve canvas");
         let web_window = web_sys::window().expect("couldn't retrieve website window");
         let body = web_window
             .document()
             .and_then(|doc| doc.body())
             .expect("couldn't retrieve document body");
-        body.append_child(&web_sys::Element::from(window.canvas()))
+        body.append_child(&web_sys::Element::from(canvas))
             .ok()
             .expect("couldn't append canvas to body");
-        window.set_inner_size(winit::dpi::LogicalSize::new(
+        let _ = window.request_inner_size(winit::dpi::LogicalSize::new(
             body.client_width(),
             body.client_height(),
         ));
         let resize_closure =
             wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::Event| {
-                window.set_inner_size(winit::dpi::LogicalSize::new(
+                let _ = window.request_inner_size(winit::dpi::LogicalSize::new(
                     body.client_width(),
                     body.client_height(),
                 ));
