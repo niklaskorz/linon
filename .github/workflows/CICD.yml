@@ -21,7 +21,7 @@ jobs:
 
       - name: Build
         run: |
-          cargo install -f wasm-bindgen-cli --version 0.2.87
+          cargo install -f wasm-bindgen-cli --version 0.2.92
           RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --target wasm32-unknown-unknown --release
           wasm-bindgen --out-dir public --web target/wasm32-unknown-unknown/release/linon.wasm
 
