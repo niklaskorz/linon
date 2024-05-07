@@ -1,5 +1,5 @@
 use cgmath::{Vector2, Vector3};
-use egui::{load::SizedTexture, ImageSource};
+use egui::{load::SizedTexture, Image, ImageSource, Sense, Widget};
 use egui_wgpu as egui_wgpu_backend;
 use wgpu::util::DeviceExt;
 
@@ -303,33 +303,39 @@ impl ReferenceView {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, _device: &wgpu::Device, queue: &wgpu::Queue) {
-        let resp = ui.image(ImageSource::Texture(SizedTexture::new(
+        let resp = Image::new(ImageSource::Texture(SizedTexture::new(
             self.texture_id,
             (INITIAL_SIDEBAR_WIDTH, INITIAL_SIDEBAR_WIDTH),
-        )));
-        let input = ui.input(|i| i.clone());
-        if let Some(pos) = resp.hover_pos() {
-            if input.key_pressed(egui::Key::Space) {
+        )))
+        .sense(Sense::drag())
+        .ui(ui);
+        if resp.contains_pointer() {
+            if ui.input(|i| i.key_pressed(egui::Key::Space)) {
                 self.reset_camera(queue);
-            }
-            let camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
-                CameraOperation::Rotate
-            } else if input.pointer.button_down(egui::PointerButton::Secondary) {
-                CameraOperation::Pan
-            } else {
-                CameraOperation::None
-            };
-            if input.pointer.is_moving() {
-                self.on_pointer_moved(
-                    queue,
-                    camera_op,
-                    (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
-                );
             }
             let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
             if scroll_delta.y != 0.0 {
                 self.on_zoom(queue, scroll_delta.y);
             }
+        }
+        if resp.dragged() {
+            let Some(pos) = resp.interact_pointer_pos() else {
+                return;
+            };
+            let camera_op = if resp.dragged_by(egui::PointerButton::Primary) {
+                CameraOperation::Rotate
+            } else if resp.dragged_by(egui::PointerButton::Secondary) {
+                CameraOperation::Pan
+            } else {
+                CameraOperation::None
+            };
+            self.on_pointer_moved(
+                queue,
+                camera_op,
+                (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
+            );
+        } else {
+            self.prev_pointer_pos = None;
         }
     }
 

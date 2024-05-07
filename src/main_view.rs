@@ -4,7 +4,7 @@ use crate::{
     texture::Texture,
 };
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
-use egui::ImageSource;
+use egui::{Image, ImageSource, Sense, Widget};
 use egui_wgpu as egui_wgpu_backend;
 use std::{borrow::Cow, sync::mpsc::channel};
 use wgpu::util::DeviceExt;
@@ -702,43 +702,48 @@ impl MainView {
         {
             self.resize_texture(rpass, device, queue, size.x as u32, size.y as u32);
         }
-        let resp = ui.image(ImageSource::Texture((self.texture_id, size).into()));
-        let input = ui.input(|i| i.clone());
-        if input.pointer.any_released() && !input.pointer.any_down() {
-            self.enable_adaptive_sampling(device);
-        }
-        let mut mouse_pos = None;
-        if let Some(pos) = resp.hover_pos() {
-            if input.key_pressed(egui::Key::Space) {
+        let resp = Image::new(ImageSource::Texture((self.texture_id, size).into()))
+            .sense(Sense::click_and_drag())
+            .ui(ui);
+        if resp.contains_pointer() {
+            if ui.input(|i| i.key_pressed(egui::Key::Space)) {
                 self.reset_camera(queue);
-            }
-            if input.pointer.any_pressed() {
-                mouse_pos = Some([
-                    (pos.x - resp.rect.left()) / resp.rect.width(),
-                    1.0 - (pos.y - resp.rect.top()) / resp.rect.height(),
-                ]);
-            }
-            let camera_op = if input.pointer.button_down(egui::PointerButton::Primary) {
-                CameraOperation::Rotate
-            } else if input.pointer.button_down(egui::PointerButton::Secondary) {
-                CameraOperation::Pan
-            } else {
-                CameraOperation::None
-            };
-            if input.pointer.is_moving() {
-                self.on_pointer_moved(
-                    device,
-                    queue,
-                    camera_op,
-                    (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
-                );
             }
             let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
             if scroll_delta.y != 0.0 {
                 self.on_zoom(queue, scroll_delta.y);
             }
         }
-        mouse_pos
+        if resp.dragged() && resp.interact_pointer_pos().is_some() {
+            self.enable_adaptive_sampling(device);
+            let pos = resp.interact_pointer_pos().unwrap();
+            let camera_op = if resp.dragged_by(egui::PointerButton::Primary) {
+                CameraOperation::Rotate
+            } else if resp.dragged_by(egui::PointerButton::Secondary) {
+                CameraOperation::Pan
+            } else {
+                CameraOperation::None
+            };
+            self.on_pointer_moved(
+                device,
+                queue,
+                camera_op,
+                (pos.x - resp.rect.left(), pos.y - resp.rect.top()),
+            );
+        } else {
+            self.prev_pointer_pos = None;
+        }
+        // Return click position relative to render view if any
+        if resp.clicked() {
+            resp.interact_pointer_pos().map(|pos| {
+                [
+                    (pos.x - resp.rect.left()) / resp.rect.width(),
+                    1.0 - (pos.y - resp.rect.top()) / resp.rect.height(),
+                ]
+            })
+        } else {
+            None
+        }
     }
 
     fn enable_adaptive_sampling(&mut self, device: &wgpu::Device) {
