@@ -59,7 +59,7 @@ impl<'a> Application<'a> {
     pub async fn new(window: &'a Window) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::PRIMARY,
+            backends: wgpu::Backends::all(),
             ..Default::default()
         });
         let surface = instance.create_surface(window)?;

@@ -19,3 +19,4 @@
 /public/linon.js
 
 .DS_Store
+.direnv/

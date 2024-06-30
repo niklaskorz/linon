@@ -42,4 +42,3 @@ getrandom = { version = "0.2", features = ["js"] }
 egui = { git = "https://github.com/emilk/egui.git", rev = "ded8dbd45bc8616475c364878f6b8e2f7293d12c" }
 egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "ded8dbd45bc8616475c364878f6b8e2f7293d12c" }
 egui-winit = { git = "https://github.com/emilk/egui.git", rev = "ded8dbd45bc8616475c364878f6b8e2f7293d12c" }
-#ac-ffmpeg = { path = "../../rust-ac-ffmpeg" }
