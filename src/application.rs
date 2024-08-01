@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::sync::Arc;
 
 use crate::cornell_box as cbox;
 use crate::egui_wgpu::EguiWgpu;
@@ -56,13 +57,13 @@ pub struct Application<'a> {
 }
 
 impl<'a> Application<'a> {
-    pub async fn new(window: &'a Window) -> Result<Self> {
+    pub async fn new(window: Arc<Window>) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
-        let surface = instance.create_surface(window)?;
+        let surface = instance.create_surface(window.clone())?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -81,6 +82,7 @@ impl<'a> Application<'a> {
                     label: None,
                     required_features: wgpu::Features::default(),
                     required_limits: wgpu::Limits::default(),
+                    memory_hints: wgpu::MemoryHints::default(),
                 },
                 None,
             )
@@ -127,7 +129,7 @@ impl<'a> Application<'a> {
             mapped_at_creation: false,
         });
 
-        let mut egui_wgpu = EguiWgpu::new(window, &device, surface_format);
+        let mut egui_wgpu = EguiWgpu::new(window.as_ref(), &device, surface_format);
 
         let main_view = MainView::new(
             &mut egui_wgpu.renderer,

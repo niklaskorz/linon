@@ -24,7 +24,7 @@ impl EguiWgpu {
                 Some(window.scale_factor() as f32),
                 None,
             ),
-            renderer: egui_wgpu::Renderer::new(device, output_format, None, 1),
+            renderer: egui_wgpu::Renderer::new(device, output_format, None, 1, false),
         }
     }
 

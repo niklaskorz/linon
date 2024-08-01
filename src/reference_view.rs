@@ -203,6 +203,7 @@ impl ReferenceView {
             }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let sample_indices = create_indices();
@@ -450,5 +451,6 @@ fn create_sample_render_pipeline(
         }),
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
+        cache: None,
     })
 }

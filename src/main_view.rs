@@ -319,6 +319,7 @@ impl MainView {
             module: &shader,
             entry_point: "main_view",
             compilation_options: Default::default(),
+            cache: None,
         });
 
         let overlay_shader_src = include_str!("overlay.wgsl");
@@ -423,6 +424,7 @@ impl MainView {
             #[cfg(target_arch = "wasm32")]
             entry_point: "overlay_web",
             compilation_options: Default::default(),
+            cache: None,
         });
 
         Self {
@@ -667,6 +669,7 @@ impl MainView {
             module: &compute_shader,
             entry_point: "main_view",
             compilation_options: Default::default(),
+            cache: None,
         });
 
         device.on_uncaptured_error(Box::new(|e| panic!("{}", e)));
