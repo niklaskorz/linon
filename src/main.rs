@@ -22,6 +22,7 @@ use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyEvent};
+use winit::event_loop::EventLoopProxy;
 use winit::window::Fullscreen;
 use winit::{event::WindowEvent, event_loop::EventLoop, keyboard::Key, window::Window};
 
@@ -34,16 +35,25 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
     Ok(watcher)
 }
 
+enum UserEvent<'a> {
+    ApplicationCreated(Application<'a>),
+}
+
 struct ApplicationWindow<'a> {
     app: Option<Application<'a>>,
     window: Option<Arc<Window>>,
     close_requested: bool,
+    event_proxy: EventLoopProxy<UserEvent<'static>>,
     #[cfg(not(target_arch = "wasm32"))]
     shader_rx: Receiver<notify::Result<notify::Event>>,
 }
 
-impl<'a> ApplicationHandler for ApplicationWindow<'a> {
+impl<'a> ApplicationHandler<UserEvent<'static>> for ApplicationWindow<'a> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        if self.app.is_some() {
+            return;
+        }
+
         let window_attributes = Window::default_attributes()
             .with_title("linon")
             .with_inner_size(LogicalSize {
@@ -51,6 +61,7 @@ impl<'a> ApplicationHandler for ApplicationWindow<'a> {
                 height: 900,
             });
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap()); // needed for resize closure on web
+        self.window = Some(window.clone());
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -86,8 +97,33 @@ impl<'a> ApplicationHandler for ApplicationWindow<'a> {
             resize_closure.forget();
         }
 
-        self.app = Some(create_application(window.clone()));
-        self.window = Some(window);
+        let event_proxy = self.event_proxy.clone();
+        let app_closure = async move {
+            let app = Application::new(window)
+                .await
+                .expect("creation of application failed");
+            event_proxy
+                .send_event(UserEvent::ApplicationCreated(app))
+                .map_err(|_| "sending created application failed")
+                .unwrap();
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        futures::executor::block_on(app_closure);
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(app_closure);
+    }
+
+    fn user_event(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        event: UserEvent<'a>,
+    ) {
+        match event {
+            UserEvent::ApplicationCreated(application) => {
+                self.app = Some(application);
+            }
+        }
     }
 
     fn window_event(
@@ -193,14 +229,6 @@ impl<'a> ApplicationHandler for ApplicationWindow<'a> {
     }
 }
 
-fn create_application<'a>(window: Arc<Window>) -> Application<'a> {
-    #[cfg(not(target_arch = "wasm32"))]
-    let app = futures::executor::block_on(Application::new(window));
-    #[cfg(target_arch = "wasm32")]
-    let app = wasm_bindgen_futures::spawn_local(async move { Application::new(window).await });
-    app.expect("creation of application failed")
-}
-
 fn main() -> Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     env_logger::init();
@@ -220,15 +248,16 @@ fn main() -> Result<()> {
         }
     };
 
+    let event_loop = EventLoop::with_user_event().build()?;
+
     let mut app = ApplicationWindow {
         window: None,
         app: None,
         close_requested: false,
+        event_proxy: event_loop.create_proxy(),
         #[cfg(not(target_arch = "wasm32"))]
         shader_rx,
     };
-
-    let event_loop = EventLoop::new()?;
     event_loop.run_app(&mut app)?;
 
     Ok(())
