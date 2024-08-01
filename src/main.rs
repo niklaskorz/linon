@@ -35,20 +35,20 @@ fn start_watcher(tx: Sender<notify::Result<notify::Event>>) -> Result<Recommende
     Ok(watcher)
 }
 
-enum UserEvent<'a> {
-    ApplicationCreated(Application<'a>),
+enum UserEvent {
+    ApplicationCreated(Application),
 }
 
-struct ApplicationWindow<'a> {
-    app: Option<Application<'a>>,
+struct ApplicationWindow {
+    app: Option<Application>,
     window: Option<Arc<Window>>,
     close_requested: bool,
-    event_proxy: EventLoopProxy<UserEvent<'static>>,
+    event_proxy: EventLoopProxy<UserEvent>,
     #[cfg(not(target_arch = "wasm32"))]
     shader_rx: Receiver<notify::Result<notify::Event>>,
 }
 
-impl<'a> ApplicationHandler<UserEvent<'static>> for ApplicationWindow<'a> {
+impl ApplicationHandler<UserEvent> for ApplicationWindow {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if self.app.is_some() {
             return;
@@ -114,11 +114,7 @@ impl<'a> ApplicationHandler<UserEvent<'static>> for ApplicationWindow<'a> {
         wasm_bindgen_futures::spawn_local(app_closure);
     }
 
-    fn user_event(
-        &mut self,
-        _event_loop: &winit::event_loop::ActiveEventLoop,
-        event: UserEvent<'a>,
-    ) {
+    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::ApplicationCreated(application) => {
                 self.app = Some(application);

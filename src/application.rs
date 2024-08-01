@@ -30,10 +30,10 @@ impl Display for OverlayMode {
     }
 }
 
-pub struct Application<'a> {
+pub struct Application {
     _instance: wgpu::Instance,
     surface_config: wgpu::SurfaceConfiguration,
-    surface: wgpu::Surface<'a>,
+    surface: wgpu::Surface<'static>,
     _adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -56,7 +56,7 @@ pub struct Application<'a> {
     field_function: String,
 }
 
-impl<'a> Application<'a> {
+impl Application {
     pub async fn new(window: Arc<Window>) -> Result<Self> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
