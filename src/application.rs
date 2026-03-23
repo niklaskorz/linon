@@ -10,6 +10,7 @@ use crate::syntax_highlighting::code_view_ui;
 use crate::vertices::{get_center, normalize_vertices};
 use anyhow::{Context, Result};
 use wgpu::util::DeviceExt;
+use wgpu::{BackendOptions, CurrentSurfaceTexture, InstanceFlags, MemoryBudgetThresholds};
 use winit::window::Window;
 
 pub const INITIAL_SIDEBAR_WIDTH: f32 = 500.0;
@@ -61,7 +62,10 @@ impl Application {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            ..Default::default()
+            flags: InstanceFlags::default(),
+            memory_budget_thresholds: MemoryBudgetThresholds::default(),
+            backend_options: BackendOptions::default(),
+            display: None,
         });
         let surface = instance.create_surface(window.clone())?;
         let adapter = instance
@@ -77,15 +81,7 @@ impl Application {
         #[cfg(target_arch = "wasm32")]
         let discrete_gpu = false;
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::default(),
-                    required_limits: wgpu::Limits::default(),
-                    memory_hints: wgpu::MemoryHints::default(),
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor::default())
             .await?;
 
         let surface_caps = surface.get_capabilities(&adapter);
@@ -489,8 +485,22 @@ impl Application {
         }
     }
 
-    pub fn render(&mut self, window: &winit::window::Window) -> Result<(), wgpu::SurfaceError> {
-        let frame = self.surface.get_current_texture()?;
+    pub fn render(&mut self, window: &winit::window::Window) -> Result<(), SurfaceError> {
+        let frame = match self.surface.get_current_texture() {
+            CurrentSurfaceTexture::Success(frame) => frame,
+            CurrentSurfaceTexture::Suboptimal(_) | CurrentSurfaceTexture::Outdated => {
+                return Err(SurfaceError::Outdated);
+            }
+            CurrentSurfaceTexture::Lost => {
+                return Err(SurfaceError::Lost);
+            }
+            CurrentSurfaceTexture::Validation => {
+                return Err(SurfaceError::Validation);
+            }
+            _ => {
+                return Ok(());
+            }
+        };
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -526,4 +536,14 @@ impl Application {
 
         Ok(())
     }
+}
+
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum SurfaceError {
+    #[error("Surface must be updated")]
+    Outdated,
+    #[error("Surface or device must be recreated")]
+    Lost,
+    #[error("Validation error")]
+    Validation,
 }

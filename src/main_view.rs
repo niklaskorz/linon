@@ -6,7 +6,7 @@ use crate::{
 use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3};
 use egui::{Image, ImageSource, Sense, Widget};
 use egui_wgpu as egui_wgpu_backend;
-use std::{borrow::Cow, sync::mpsc::channel};
+use std::{borrow::Cow, sync::{Arc, mpsc::channel}};
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -307,17 +307,17 @@ impl MainView {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("compute_pipeline_layout"),
                 bind_group_layouts: &[
-                    &compute_bind_group_layout,
-                    &mesh_bind_group_layout,
-                    &ray_samples_bind_group_layout,
+                    Some(&compute_bind_group_layout),
+                    Some(&mesh_bind_group_layout),
+                    Some(&ray_samples_bind_group_layout),
                 ],
-                push_constant_ranges: &[],
+                ..Default::default()
             });
         let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("compute_pipeline"),
             layout: Some(&compute_pipeline_layout),
             module: &shader,
-            entry_point: "main_view",
+            entry_point: Some("main_view"),
             compilation_options: Default::default(),
             cache: None,
         });
@@ -412,17 +412,17 @@ impl MainView {
         let overlay_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("overlay_pipeline_layout"),
-                bind_group_layouts: &[&overlay_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(&overlay_bind_group_layout)],
+                ..Default::default()
             });
         let overlay_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("overlay_pipeline"),
             layout: Some(&overlay_pipeline_layout),
             module: &overlay_shader,
             #[cfg(not(target_arch = "wasm32"))]
-            entry_point: "overlay_desktop",
+            entry_point: Some("overlay_desktop"),
             #[cfg(target_arch = "wasm32")]
-            entry_point: "overlay_web",
+            entry_point: Some("overlay_web"),
             compilation_options: Default::default(),
             cache: None,
         });
@@ -655,9 +655,9 @@ impl MainView {
         let src = with_field_function(new_src.unwrap_or(&self.shader_src), &field_function);
 
         let (tx, rx) = channel::<wgpu::Error>();
-        device.on_uncaptured_error(Box::new(move |e: wgpu::Error| {
+        device.on_uncaptured_error(Arc::new(Box::new(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
-        }));
+        })));
 
         let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("compute_shader"),
@@ -667,12 +667,12 @@ impl MainView {
             label: Some("compute_pipeline"),
             layout: Some(&self.compute_pipeline_layout),
             module: &compute_shader,
-            entry_point: "main_view",
+            entry_point: Some("main_view"),
             compilation_options: Default::default(),
             cache: None,
         });
 
-        device.on_uncaptured_error(Box::new(|e| panic!("{}", e)));
+        device.on_uncaptured_error(Arc::new(Box::new(|e| panic!("{}", e))));
 
         if let Ok(err) = rx.try_recv() {
             return Err(err);

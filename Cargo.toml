@@ -13,32 +13,34 @@ winit = "0.30"
 cgmath = "0.18"
 log = "0.4"
 futures = "0.3"
-bytemuck = { version = "1.5", features = ["derive"] }
+bytemuck = { version = "1.25", features = ["derive"] }
 anyhow = "1.0"
 tobj = "4.0"
-egui = "0.28"
-egui-wgpu = "0.28"
-wgpu = { version = "22.1.0", features = ["fragile-send-sync-non-atomic-wasm"] }
+egui = "0.33"
+egui-wgpu = "0.33"
+wgpu = { version = "29.0.0", features = ["fragile-send-sync-non-atomic-wasm"] }
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
-enum-map = "2.6"
+enum-map = "2.7"
+thiserror = "2.0.18"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = "0.28"
-notify = "6.1"
+egui-winit = "0.33"
+notify = "8.2"
 env_logger = "0.11"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui-winit = { version = "0.28", default-features = false, features = ["links"] }
-wasm-bindgen = "0.2.92"
+egui-winit = { version = "0.33", default-features = false, features = ["links"] }
+wasm-bindgen = "0.2.114"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"
 console_log = "1.0"
 console_error_panic_hook = "0.1"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [features]
 
 [patch.crates-io]
-egui = { git = "https://github.com/emilk/egui.git", rev = "d856f7b3a58fc65a81ff9657f5c6e1ab462b7bb6" }
-egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "d856f7b3a58fc65a81ff9657f5c6e1ab462b7bb6" }
-egui-winit = { git = "https://github.com/emilk/egui.git", rev = "d856f7b3a58fc65a81ff9657f5c6e1ab462b7bb6" }
+# wgpu 29 PR: https://github.com/emilk/egui/pull/7990
+egui = { git = "https://github.com/emilk/egui.git", rev = "65657941e2391a61622b797119071dc23257d2f8" }
+egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "65657941e2391a61622b797119071dc23257d2f8" }
+egui-winit = { git = "https://github.com/emilk/egui.git", rev = "65657941e2391a61622b797119071dc23257d2f8" }

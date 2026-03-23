@@ -157,24 +157,27 @@ impl ReferenceView {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("render_pipeline_layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout, &mesh_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[
+                    Some(&uniform_bind_group_layout),
+                    Some(&mesh_bind_group_layout),
+                ],
+                ..Default::default()
             });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("render_pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "main_vertex",
+                entry_point: Some("main_vertex"),
                 buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 #[cfg(not(target_arch = "wasm32"))]
-                entry_point: "main_fragment",
+                entry_point: Some("main_fragment"),
                 #[cfg(target_arch = "wasm32")]
-                entry_point: "main_fragment_web",
+                entry_point: Some("main_fragment_web"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: texture.format,
                     blend: Some(wgpu::BlendState {
@@ -196,13 +199,13 @@ impl ReferenceView {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -216,8 +219,8 @@ impl ReferenceView {
         let sample_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("sample_render_pipeline_layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(&uniform_bind_group_layout)],
+                ..Default::default()
             });
         let sample_render_pipeline = create_sample_render_pipeline(
             device,
@@ -350,6 +353,7 @@ impl ReferenceView {
             label: Some("rpass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &self.texture.view,
+                depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -371,6 +375,7 @@ impl ReferenceView {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         rpass.set_pipeline(&self.render_pipeline);
@@ -401,16 +406,16 @@ fn create_sample_render_pipeline(
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module: shader,
-            entry_point: "sample_vertex",
+            entry_point: Some("sample_vertex"),
             buffers: &[vertex_desc()],
             compilation_options: Default::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: shader,
             #[cfg(not(target_arch = "wasm32"))]
-            entry_point: "sample_fragment",
+            entry_point: Some("sample_fragment"),
             #[cfg(target_arch = "wasm32")]
-            entry_point: "sample_fragment_web",
+            entry_point: Some("sample_fragment_web"),
             targets: &[Some(wgpu::ColorTargetState {
                 format: texture_format,
                 blend: Some(wgpu::BlendState {
@@ -444,13 +449,13 @@ fn create_sample_render_pipeline(
         },
         depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
+            depth_write_enabled: Some(true),
+            depth_compare: Some(wgpu::CompareFunction::Less),
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),
         multisample: wgpu::MultisampleState::default(),
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     })
 }

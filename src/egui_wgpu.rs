@@ -23,8 +23,13 @@ impl EguiWgpu {
                 window,
                 Some(window.scale_factor() as f32),
                 None,
+                None,
             ),
-            renderer: egui_wgpu::Renderer::new(device, output_format, None, 1, false),
+            renderer: egui_wgpu::Renderer::new(
+                device,
+                output_format,
+                egui_wgpu::RendererOptions::default(),
+            ),
         }
     }
 
@@ -92,9 +97,10 @@ impl EguiWgpu {
         );
 
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &color_attachment,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
@@ -105,7 +111,9 @@ impl EguiWgpu {
                 label: Some("egui_render"),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                ..Default::default()
             });
+            let mut render_pass = render_pass.forget_lifetime();
             self.renderer
                 .render(&mut render_pass, &clipped_meshes, &screen_descriptor);
         }

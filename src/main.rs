@@ -182,7 +182,7 @@ impl ApplicationHandler<UserEvent> for ApplicationWindow {
             },
             WindowEvent::RedrawRequested => {
                 if let Err(e) = app.render(&window) {
-                    if e == wgpu::SurfaceError::Outdated {
+                    if e == application::SurfaceError::Outdated {
                         let size = window.inner_size();
                         app.resize(size.width, size.height);
                     } else {

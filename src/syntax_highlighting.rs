@@ -1,43 +1,46 @@
 // Based on https://github.com/emilk/egui/blob/0.15.0/egui_demo_lib/src/syntax_highlighting.rs
 // MIT License
-use egui::{text::LayoutJob, FontId, FontFamily};
+use egui::{text::LayoutJob, FontFamily, FontId, TextBuffer};
 
 /// View some code with syntax highlighting and selection.
 pub fn code_view_ui<S: egui::TextBuffer>(ui: &mut egui::Ui, code: &mut S) -> egui::Response {
     let language = "rs";
 
-    let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), string, language);
+    let mut layouter = |ui: &egui::Ui, text: &dyn TextBuffer, _wrap_width: f32| {
+        let layout_job = highlight(ui.ctx(), text.as_str(), language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
-        ui.fonts(|f| f.layout_job(layout_job))
+        ui.fonts_mut(|f| f.layout_job(layout_job))
     };
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.add(
-            egui::TextEdit::multiline(code)
-                .font(FontId::new(14.0, FontFamily::Monospace))
-                .code_editor()
-                .desired_rows(10)
-                .lock_focus(true)
-                .layouter(&mut layouter),
-        )
-    }).inner
+    egui::ScrollArea::vertical()
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(code)
+                    .font(FontId::new(14.0, FontFamily::Monospace))
+                    .code_editor()
+                    .desired_rows(10)
+                    .lock_focus(true)
+                    .layouter(&mut layouter),
+            )
+        })
+        .inner
+}
+
+impl egui::util::cache::ComputerMut<(&str, &str), LayoutJob> for Highlighter {
+    fn compute(&mut self, (code, lang): (&str, &str)) -> LayoutJob {
+        self.highlight(code, lang)
+    }
 }
 
 /// Memoized Code highlighting
 pub fn highlight(ctx: &egui::Context, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(&str, &str), LayoutJob> for Highlighter {
-        fn compute(&mut self, (code, lang): (&str, &str)) -> LayoutJob {
-            self.highlight(code, lang)
-        }
-    }
-
     type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
     ctx.memory_mut(|mem| {
         mem.caches
             .cache::<HighlightCache>()
             .get((code, language))
+            .clone()
     })
 }
 
